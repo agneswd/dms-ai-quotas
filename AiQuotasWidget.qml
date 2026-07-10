@@ -319,6 +319,7 @@ PluginComponent {
                         visible: root.openCodeEnabled
                         width: parent.width
                         height: ocCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
                         color: Theme.surfaceContainerHigh
 
                         Column {
@@ -391,6 +392,7 @@ PluginComponent {
                         visible: root.deepSeekEnabled
                         width: parent.width
                         height: dsCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
                         color: Theme.surfaceContainerHigh
 
                         Column {
@@ -454,4 +456,5 @@ PluginComponent {
                     }
         }
     }
+}
 }
