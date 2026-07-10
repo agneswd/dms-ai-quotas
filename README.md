@@ -1,52 +1,36 @@
-# dms-codexbar
+# dms-ai-quotas
 
-AI coding provider usage limits in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+OpenCode usage quotas and DeepSeek balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
-Shows session and weekly usage for providers like Codex, Claude, Cursor, DeepSeek, OpenCode, Copilot, Gemini, and more - powered by the [CodexBar](https://github.com/steipete/CodexBar) CLI.
+Shows OpenCode rolling, weekly, and monthly usage percentages with reset countdowns, plus your DeepSeek account balance - all in one merged bar pill.
 
 ## Features
 
-- Merged bar pill showing top providers as theme-colored progress rings
-- Click to open a popout with per-provider detail
-- Session and weekly usage percentages with live reset countdowns
-- Credit balance display where supported
-- Provider status indicators
+- Merged bar pill showing OpenCode usage ring + DeepSeek balance indicator
+- Click to open a popout with per-window OpenCode detail (rolling, weekly, monthly)
+- Live reset countdowns for each OpenCode window
+- DeepSeek balance card with total/granted/topped-up breakdown
 - Configurable refresh interval (30s - 300s)
-- Choose which providers to display
+- Toggle each provider on/off independently
 
 ## Requirements
 
 - DankMaterialShell >= 1.5.0
-- [CodexBar CLI](https://github.com/steipete/CodexBar) (`codexbar`)
+- [opencode-quota](https://github.com/slkiser/opencode-quota) (`npm i -g @slkiser/opencode-quota`)
 - `jq`
-
-### Installing codexbar
-
-**Homebrew (macOS/Linux):**
-
-```sh
-brew install steipete/tap/codexbar
-```
-
-**Arch Linux (AUR):**
-
-```sh
-yay -S codexbar-cli
-```
-
-**Manual:** Download release tarballs from [GitHub Releases](https://github.com/steipete/CodexBar/releases).
+- For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
 
 ## Install
 
 ```sh
-git clone https://github.com/agneswd/dms-codexbar \
-          ~/.config/DankMaterialShell/plugins/codexbar
+git clone https://github.com/agneswd/dms-ai-quotas \
+          ~/.config/DankMaterialShell/plugins/aiQuotas
 ```
 
 Then in DMS:
 1. Open **Settings - Plugins**
 2. Click **Scan for Plugins**
-3. Enable **CodexBar**
+3. Enable **AI Quotas**
 4. Add to DankBar layout (**Settings - DankBar Layout**)
 5. Restart shell: `dms restart`
 
@@ -54,36 +38,31 @@ Then in DMS:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Providers | `all` | Comma-separated provider IDs, or `all` |
-| Refresh Interval | 60s | How often to fetch usage (30-300s) |
-| Max Providers in Bar | 3 | Top N providers shown in the bar pill |
-| Display Style | Rings | Rings (% in center) or numbers (15% . 4%) |
-| Show Credits | on | Display credit balance in popout |
-| Show Reset Countdown | on | Live reset countdown in popout |
+| OpenCode | on | Show OpenCode usage quotas |
+| DeepSeek | on | Show DeepSeek account balance |
+| DeepSeek API Key | (empty) | Your DeepSeek API key |
+| Refresh Interval | 60s | How often to fetch data (30-300s) |
+| Show Reset Countdown | on | Live countdown in the popout |
 
 ## How it works
 
 ```
-codexbar usage --format json --provider all
-    |
-    v
-fetch-usage.sh  -->  ~/.cache/dms-codexbar/usage.json
-    |
-    v
-CodexBarWidget.qml (polls on timer)
-    |-- Bar pill: merged rings for top providers
-    |-- Popout: full provider list with usage, reset countdowns, credits
+opencode-quota show --json        --\
+                                     |---> fetch-usage.sh ---> cache JSON ---> Widget
+curl api.deepseek.com/user/balance --/
 ```
 
-The plugin calls the CodexBar CLI periodically, caches the JSON output, and renders it in the bar. No passwords are stored - it reuses whatever auth the CodexBar CLI already has configured.
+The plugin runs the fetch script on a timer. It calls `opencode-quota` for OpenCode usage data and curls the DeepSeek balance API, merges the results into a single JSON cache file, and renders it in the bar.
 
-## Supported Providers
+## Setting up OpenCode quotas
 
-CodexBar supports 57+ providers including:
+Run the init command to connect OpenCode to the quota plugin:
 
-Codex, OpenAI, Claude, Cursor, OpenCode, Copilot, Gemini, Grok, GroqCloud, DeepSeek, Windsurf, Zed, Kilo, Kiro, ElevenLabs, OpenRouter, Vertex AI, Augment, LiteLLM, Deepgram, and many more.
+```sh
+opencode-quota init
+```
 
-See the [CodexBar providers list](https://github.com/steipete/CodexBar#providers) for the full list and setup instructions.
+This sets up the local data sources that `opencode-quota` reads from. Restart OpenCode after running init.
 
 ## License
 

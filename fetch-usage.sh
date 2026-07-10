@@ -1,20 +1,23 @@
 #!/bin/sh
-# Fetch AI coding provider usage from the CodexBar CLI, cache it, and print it.
+# Fetch OpenCode usage quotas and DeepSeek balance, merge, cache, and print.
 #
-# Reads the codexbar CLI JSON output for enabled providers, caches the result,
-# and prints it to stdout for the DMS plugin to consume.
+# Data sources:
+#   - OpenCode: `opencode-quota show --json` (requires @slkiser/opencode-quota)
+#   - DeepSeek: GET https://api.deepseek.com/user/balance (requires API key)
 #
 # Env:
-#   CACHE_FILE              cache path (default $XDG_CACHE_HOME/dms-codexbar/usage.json)
-#   CODEXBAR_PROVIDERS      comma-separated provider IDs (default: all enabled)
-#   CODEXBAR_USAGE_MOCK     file with sample JSON (skips network; for tests)
-#   CODEXBAR_CACHE_TTL      seconds before cache is stale (default: 55)
+#   CACHE_FILE              cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
+#   AIQ_OPENCODE_ENABLED    "1" to fetch OpenCode (default: "1")
+#   AIQ_DEEPSEEK_ENABLED    "1" to fetch DeepSeek (default: "1")
+#   DEEPSEEK_API_KEY        DeepSeek API key (or read from plugin settings)
+#   AIQ_CACHE_TTL           seconds before cache is stale (default: 55)
+#   AIQ_USAGE_MOCK          file with sample JSON (skips network; for tests)
 #
 # Exit: 0 ok, 1 no data, 2 fetch/parse error.
 set -u
 
-cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-codexbar/usage.json}"
-ttl="${CODEXBAR_CACHE_TTL:-55}"
+cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/usage.json}"
+ttl="${AIQ_CACHE_TTL:-55}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null
 now=$(date +%s)
 
@@ -29,35 +32,63 @@ if [ -s "$cache" ]; then
 fi
 
 # Use mock data if provided (for testing).
-if [ -n "${CODEXBAR_USAGE_MOCK:-}" ] && [ -f "$CODEXBAR_USAGE_MOCK" ]; then
-    resp=$(cat "$CODEXBAR_USAGE_MOCK")
-else
-    # Build provider flag.
-    provider_flag="--provider"
-    provider_val="${CODEXBAR_PROVIDERS:-all}"
+if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
+    cat "$AIQ_USAGE_MOCK"
+    exit 0
+fi
 
-    # Fetch from codexbar CLI.
-    resp=$(codexbar usage --format json --provider "$provider_val" --pretty 2>/dev/null)
-    rc=$?
-    if [ $rc -ne 0 ] || [ -z "$resp" ]; then
-        # If codexbar returned nothing, try to read last good cache.
-        if [ -s "$cache" ]; then
-            cat "$cache"
-            exit 0
-        fi
-        exit 2
+oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
+ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
+ds_key="${DEEPSEEK_API_KEY:-}"
+
+# --- Fetch OpenCode data ---
+oc_data='{"status":"unavailable"}'
+if [ "$oc_enabled" = "1" ]; then
+    oc_json=$(opencode-quota show --json 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$oc_json" ]; then
+        # Extract the opencode-go provider entries (or all providers with data).
+        # We want providers that have status "ok" and entries.
+        oc_data=$(echo "$oc_json" | jq '{
+            status: "ok",
+            providers: [(.providers | to_entries[] | select(.value.status == "ok" and .value.entries != null) | {
+                id: .key,
+                entries: .value.entries
+            })]
+        }' 2>/dev/null) || oc_data='{"status":"error"}'
     fi
 fi
 
-# Validate that we got a JSON array of provider objects.
-echo "$resp" | jq -e 'type == "array"' >/dev/null 2>&1 || {
-    # Maybe it's a single object (one provider). Wrap in array.
-    wrapped=$(echo "$resp" | jq -e 'type == "object"' >/dev/null 2>&1 && echo "[$resp]" || echo "[]")
-    resp="$wrapped"
-}
+# --- Fetch DeepSeek data ---
+ds_data='{"status":"unavailable"}'
+if [ "$ds_enabled" = "1" ] && [ -n "$ds_key" ]; then
+    ds_resp=$(curl -s -m 10 \
+        -H "Authorization: Bearer $ds_key" \
+        -H "Accept: application/json" \
+        https://api.deepseek.com/user/balance 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$ds_resp" ]; then
+        ds_data=$(echo "$ds_resp" | jq '{
+            status: (if .is_available then "ok" else "error" end),
+            isAvailable: .is_available,
+            balances: [.balance_infos[] | {
+                currency: .currency,
+                total: .total_balance,
+                granted: .granted_balance,
+                toppedUp: .topped_up_balance
+            }]
+        }' 2>/dev/null) || ds_data='{"status":"error"}'
+    fi
+fi
 
-# Add captured_at timestamp and write cache.
-out=$(echo "$resp" | jq --argjson now "$now" '[ .[] | . + {captured_at: $now} ]') || exit 2
+# --- Merge and write cache ---
+out=$(jq -n \
+    --argjson now "$now" \
+    --argjson oc "$oc_data" \
+    --argjson ds "$ds_data" \
+    '{
+        captured_at: $now,
+        opencode: $oc,
+        deepseek: $ds
+    }') || exit 2
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"

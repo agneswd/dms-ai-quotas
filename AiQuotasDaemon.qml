@@ -6,12 +6,15 @@ import qs.Modules.Plugins
 
 PluginComponent {
     id: root
-    pluginId: "codexbar"
+    pluginId: "aiQuotas"
 
     property int refreshInterval: pluginData.refreshInterval || 60
+    property bool openCodeEnabled: pluginData.openCodeEnabled !== false
+    property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
+
     property var usageData: null
     property bool fetchFailed: false
-    property string providers: pluginData.providers || "all"
 
     signal usageUpdated()
 
@@ -28,8 +31,10 @@ PluginComponent {
         id: fetchProcess
         command: [
             "sh", "-c",
-            "CODEXBAR_PROVIDERS='" + root.providers + "' " +
-            "CODEXBAR_USAGE_MOCK=${CODEXBAR_USAGE_MOCK:-} " +
+            "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
+            "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
+            "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
+            "AIQ_USAGE_MOCK=${AIQ_USAGE_MOCK:-} " +
             "sh '" + Qt.resolvedUrl("fetch-usage.sh") + "'"
         ]
         stdout: SplitParser {
@@ -39,17 +44,17 @@ PluginComponent {
                     var parsed = JSON.parse(line)
                     root.usageData = parsed
                     root.fetchFailed = false
-                    pluginService.savePluginState("codexbar", "lastData", parsed)
+                    pluginService.savePluginState("aiQuotas", "lastData", parsed)
                     root.usageUpdated()
                 } catch (e) {
-                    console.warn("codexbar: JSON parse error:", e)
+                    console.warn("aiQuotas: JSON parse error:", e)
                     root.fetchFailed = true
                 }
             }
         }
         stderr: SplitParser {
             onRead: line => {
-                if (line.trim()) console.warn("codexbar fetch:", line)
+                if (line.trim()) console.warn("aiQuotas fetch:", line)
             }
         }
         onExited: code => {
@@ -60,22 +65,22 @@ PluginComponent {
     }
 
     Component.onCompleted: {
-        var cached = pluginService.loadPluginState("codexbar", "lastData", null)
+        var cached = pluginService.loadPluginState("aiQuotas", "lastData", null)
         if (cached) {
             root.usageData = cached
         }
     }
 
-    function providersList() {
-        if (!root.usageData) return []
-        return root.usageData
+    function openCodeProviders() {
+        if (!usageData || !usageData.opencode) return []
+        if (usageData.opencode.status !== "ok") return []
+        return usageData.opencode.providers || []
     }
 
-    function findProvider(id) {
-        if (!root.usageData) return null
-        for (var i = 0; i < root.usageData.length; i++) {
-            if (root.usageData[i].provider === id) return root.usageData[i]
-        }
-        return null
+    function deepSeekBalance() {
+        if (!usageData || !usageData.deepseek) return null
+        if (usageData.deepseek.status !== "ok") return null
+        if (!usageData.deepseek.balances || usageData.deepseek.balances.length === 0) return null
+        return usageData.deepseek.balances[0]
     }
 }
