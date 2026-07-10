@@ -296,19 +296,9 @@ PluginComponent {
                 width: parent.width
                 spacing: 0
 
-                // OpenCode header
-                StyledText {
-                    visible: root.openCodeEnabled && root.visibleWindows().length > 0
-                    text: "OpenCode"
-                    color: Theme.surfaceText
-                    font.pixelSize: Theme.fontSizeMedium
-                    font.weight: Font.Bold
-                    bottomPadding: Theme.spacingS
-                }
-
-                // OpenCode entries
+                // OpenCode pinned entry
                 Repeater {
-                    model: root.openCodeEnabled ? root.visibleWindows() : []
+                    model: root.openCodeEnabled && root.pinnedEntry() ? [root.pinnedEntry()] : []
                     delegate: Column {
                         width: parent.width
                         spacing: Theme.spacingXS
@@ -327,15 +317,10 @@ PluginComponent {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
                                 StyledText {
-                                    text: modelData.name || "Unknown"
+                                    text: (100 - (modelData.percentUsed || 0)) + "% remaining"
                                     color: Theme.surfaceText
                                     font.pixelSize: Theme.fontSizeMedium
                                     font.weight: Font.Medium
-                                }
-                                StyledText {
-                                    text: (100 - (modelData.percentUsed || 0)) + "% remaining"
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall
                                 }
                                 StyledText {
                                     visible: root.showResetTime && modelData.resetAt > 0
@@ -345,7 +330,6 @@ PluginComponent {
                                 }
                             }
                         }
-                        Rectangle { width: parent.width; height: 1; color: Theme.outlineVariant; opacity: 0.3 }
                     }
                 }
 
@@ -370,7 +354,7 @@ PluginComponent {
                 // Separator before DeepSeek
                 Item {
                     width: parent.width
-                    height: Theme.spacingM
+                    height: Theme.spacingL
                     visible: root.deepSeekEnabled
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
@@ -379,16 +363,6 @@ PluginComponent {
                         color: Theme.outlineVariant
                         opacity: 0.5
                     }
-                }
-
-                // DeepSeek header
-                StyledText {
-                    visible: root.deepSeekEnabled
-                    text: "DeepSeek"
-                    color: Theme.surfaceText
-                    font.pixelSize: Theme.fontSizeMedium
-                    font.weight: Font.Bold
-                    bottomPadding: Theme.spacingS
                 }
 
                 // DeepSeek balance
