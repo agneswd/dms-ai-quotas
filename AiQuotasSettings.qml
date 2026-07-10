@@ -26,7 +26,7 @@ PluginSettings {
     ToggleSetting {
         settingKey: "openCodeEnabled"
         label: "OpenCode"
-        description: "Show OpenCode usage quotas (requires opencode-quota)"
+        description: "Show OpenCode usage quotas"
         defaultValue: true
     }
 
@@ -40,7 +40,7 @@ PluginSettings {
     StringSetting {
         settingKey: "deepSeekApiKey"
         label: "DeepSeek API Key"
-        description: "Your DeepSeek API key from platform.deepseek.com/api_keys"
+        description: "From platform.deepseek.com/api_keys"
         placeholder: "sk-..."
         defaultValue: ""
     }
@@ -60,5 +60,22 @@ PluginSettings {
         label: "Show Reset Countdown"
         description: "Show live reset countdown in the popout"
         defaultValue: true
+    }
+
+    StyledText {
+        width: parent.width
+        text: "OpenCode Config"
+        font.pixelSize: Theme.fontSizeMedium
+        font.weight: Font.Bold
+        color: Theme.surfaceText
+        anchors.topMargin: Theme.spacingM
+    }
+
+    StyledText {
+        width: parent.width
+        text: "Set workspace ID and auth cookie from your OpenCode dashboard, or create ~/.config/opencode-quota/opencode-go.json"
+        font.pixelSize: Theme.fontSizeSmall
+        color: Theme.surfaceVariantText
+        wrapMode: Text.WordWrap
     }
 }

@@ -1,40 +1,26 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell.Io
 import qs.Common
 import qs.Services
-import qs.Widgets
 import qs.Modules.Plugins
 
 PluginComponent {
     id: root
     pluginId: "aiQuotas"
 
-    readonly property int warnPct: 70
-    readonly property int critPct: 90
-
-    readonly property int refreshInterval: pluginData.refreshInterval || 60
-    readonly property bool openCodeEnabled: pluginData.openCodeEnabled !== false
-    readonly property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
-    readonly property bool showResetTime: pluginData.showResetTime !== false
-    readonly property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
+    property int refreshInterval: pluginData.refreshInterval || 60
+    property bool openCodeEnabled: pluginData.openCodeEnabled !== false
+    property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
+    property string pluginDir: {
+        var url = Qt.resolvedUrl(".")
+        var path = url.toString()
+        if (path.indexOf("file://") === 0) path = path.substring(7)
+        return path
+    }
 
     property var usageData: null
     property bool fetchFailed: false
-    property real now: Date.now() / 1000
-    property string pluginDir: Qt.resolvedUrl(".").toString().replace("file://", "")
-
-    function closePopout() {
-        root.closePopout()
-    }
-
-    Timer {
-        id: tickTimer
-        interval: 1000
-        running: root.showResetTime
-        repeat: true
-        onTriggered: root.now = Date.now() / 1000
-    }
 
     Timer {
         id: refreshTimer
@@ -42,13 +28,18 @@ PluginComponent {
         running: true
         repeat: true
         triggeredOnStart: true
-        onTriggered: fetchProcess.running = true
+        onTriggered: {
+            try {
+                fetchProcess.running = true
+            } catch (e) {
+                console.warn("aiQuotas: failed to start fetch:", e)
+            }
+        }
     }
 
     Process {
         id: fetchProcess
-        command: [
-            "sh", "-c",
+        command: ["sh", "-c",
             "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
             "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
             "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
@@ -57,103 +48,83 @@ PluginComponent {
         ]
         stdout: SplitParser {
             onRead: line => {
-                if (!line.trim()) return
                 try {
-                    var parsed = JSON.parse(line)
+                    var trimmed = line.trim()
+                    if (trimmed.length === 0) return
+                    var parsed = JSON.parse(trimmed)
                     root.usageData = parsed
                     root.fetchFailed = false
                 } catch (e) {
-                    root.fetchFailed = true
+                    // Ignore partial lines from multi-line output.
                 }
             }
         }
         stderr: SplitParser {
-            onRead: line => {
-                if (line.trim()) console.warn("aiQuotas:", line)
-            }
+            onRead: line => {}
         }
         onExited: code => {
-            if (code !== 0 && !root.usageData) root.fetchFailed = true
-        }
-    }
-
-    // --- Helper functions ---
-
-    function color(pct) {
-        return pct >= critPct ? Theme.error : pct >= warnPct ? Theme.warning : Theme.primary
-    }
-
-    function countdown(resetAt) {
-        if (!resetAt) return "--"
-        var diff = resetAt - now
-        if (diff <= 0) return "now"
-        var h = Math.floor(diff / 3600)
-        var m = Math.floor((diff % 3600) / 60)
-        if (h > 0) return h + "h " + m + "m"
-        return m + "m"
-    }
-
-    function openCodeProviders() {
-        if (!usageData || !usageData.opencode) return []
-        if (usageData.opencode.status !== "ok") return []
-        return usageData.opencode.providers || []
-    }
-
-    function openCodePrimaryPct() {
-        var providers = openCodeProviders()
-        if (providers.length === 0) return -1
-        // Find the first provider with entries and use its first entry.
-        for (var i = 0; i < providers.length; i++) {
-            var entries = providers[i].entries
-            if (entries && entries.length > 0) {
-                return 100 - (entries[0].percentRemaining || 0)
+            if (code !== 0 && !root.usageData) {
+                root.fetchFailed = true
             }
         }
-        return -1
+    }
+
+    Component.onCompleted: {
+        try {
+            var cached = pluginService.loadPluginState("aiQuotas", "lastData", null)
+            if (cached) root.usageData = cached
+        } catch (e) {}
+    }
+
+    function openCodeEntries() {
+        try {
+            if (!usageData || !usageData.opencode) return []
+            if (usageData.opencode.status !== "ok") return []
+            return usageData.opencode.entries || []
+        } catch (e) { return [] }
     }
 
     function deepSeekBalance() {
-        if (!usageData || !usageData.deepseek) return null
-        if (usageData.deepseek.status !== "ok") return null
-        if (!usageData.deepseek.balances || usageData.deepseek.balances.length === 0) return null
-        return usageData.deepseek.balances[0]
+        try {
+            if (!usageData || !usageData.deepseek) return null
+            if (usageData.deepseek.status !== "ok") return null
+            if (!usageData.deepseek.balances || usageData.deepseek.balances.length === 0) return null
+            return usageData.deepseek.balances[0]
+        } catch (e) { return null }
     }
 
-    function deepSeekAvailable() {
-        var b = deepSeekBalance()
-        if (!b) return false
-        return b.isAvailable !== false
+    function color(pct) {
+        if (pct >= 90) return Theme.error
+        if (pct >= 70) return Theme.warning
+        return Theme.primary
+    }
+
+    function countdown(resetAt) {
+        try {
+            if (!resetAt) return "--"
+            var diff = resetAt - (Date.now() / 1000)
+            if (diff <= 0) return "now"
+            var h = Math.floor(diff / 3600)
+            var m = Math.floor((diff % 3600) / 60)
+            if (h > 0) return h + "h " + m + "m"
+            return m + "m"
+        } catch (e) { return "--" }
     }
 
     function formatBalance(b) {
-        if (!b) return "--"
-        var total = parseFloat(b.total) || 0
-        return b.currency + " " + total.toFixed(2)
+        try {
+            if (!b) return "--"
+            return b.currency + " " + (parseFloat(b.total) || 0).toFixed(2)
+        } catch (e) { return "--" }
     }
 
-    function allEntries() {
-        var out = []
-        var providers = openCodeProviders()
-        for (var i = 0; i < providers.length; i++) {
-            var entries = providers[i].entries || []
-            for (var j = 0; j < entries.length; j++) {
-                out.push({
-                    provider: providers[i].id,
-                    name: entries[j].name || entries[j].window,
-                    window: entries[j].window || "",
-                    percentUsed: 100 - (entries[j].percentRemaining || 0),
-                    percentRemaining: entries[j].percentRemaining || 0,
-                    resetAt: entries[j].resetAt || 0,
-                    unlimited: entries[j].unlimited || false
-                })
-            }
-        }
-        // Sort by percent used descending.
-        out.sort(function (a, b) { return b.percentUsed - a.percentUsed })
-        return out
+    function primaryPct() {
+        try {
+            var entries = openCodeEntries()
+            if (entries.length === 0) return -1
+            return entries[0].percentUsed || 0
+        } catch (e) { return -1 }
     }
-
-    // --- Bar pill ---
 
     horizontalBarPill: Component {
         StyledRect {
@@ -168,7 +139,6 @@ PluginComponent {
                 anchors.centerIn: parent
                 spacing: Theme.spacingS
 
-                // Loading / error state.
                 StyledText {
                     visible: !root.usageData
                     text: "\u2733 --"
@@ -176,20 +146,19 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
-                // OpenCode ring.
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.openCodePrimaryPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.primaryPct() >= 0 ? [1] : []
                     delegate: Row {
                         spacing: 4
                         Layout.alignment: Qt.AlignVCenter
                         UsageRing {
-                            percentage: root.openCodePrimaryPct()
-                            ringColor: root.color(root.openCodePrimaryPct())
+                            percentage: root.primaryPct()
+                            ringColor: root.color(root.primaryPct())
                             diameter: Math.max(12, Math.min(pill.height - 9, 18))
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.openCodePrimaryPct()) + "%"
+                            text: Math.round(root.primaryPct()) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -197,21 +166,18 @@ PluginComponent {
                     }
                 }
 
-                // DeepSeek balance indicator.
                 Repeater {
                     model: root.usageData && root.deepSeekEnabled && root.deepSeekBalance() ? [1] : []
                     delegate: Row {
                         spacing: 4
                         Layout.alignment: Qt.AlignVCenter
-
                         Rectangle {
                             width: 8
                             height: 8
                             radius: 4
-                            color: root.deepSeekAvailable() ? Theme.primary : Theme.error
+                            color: Theme.primary
                             anchors.verticalCenter: parent.verticalCenter
                         }
-
                         StyledText {
                             text: root.formatBalance(root.deepSeekBalance())
                             color: Theme.surfaceText
@@ -244,20 +210,19 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
-                // OpenCode ring.
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.openCodePrimaryPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.primaryPct() >= 0 ? [1] : []
                     delegate: Column {
                         spacing: 1
                         Layout.alignment: Qt.AlignHCenter
                         UsageRing {
-                            percentage: root.openCodePrimaryPct()
-                            ringColor: root.color(root.openCodePrimaryPct())
+                            percentage: root.primaryPct()
+                            ringColor: root.color(root.primaryPct())
                             diameter: Math.max(12, Math.min(pillV.width - 8, 18))
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.openCodePrimaryPct()) + "%"
+                            text: Math.round(root.primaryPct()) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -265,7 +230,6 @@ PluginComponent {
                     }
                 }
 
-                // DeepSeek dot.
                 Repeater {
                     model: root.usageData && root.deepSeekEnabled && root.deepSeekBalance() ? [1] : []
                     delegate: Column {
@@ -275,14 +239,13 @@ PluginComponent {
                             width: 8
                             height: 8
                             radius: 4
-                            color: root.deepSeekAvailable() ? Theme.primary : Theme.error
+                            color: Theme.primary
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
                             text: {
                                 var b = root.deepSeekBalance()
-                                if (!b) return "--"
-                                return (parseFloat(b.total) || 0).toFixed(0)
+                                return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
@@ -294,203 +257,145 @@ PluginComponent {
         }
     }
 
-    // --- Popout ---
-
-    popoutWidth: 380
-    popoutHeight: 480
+    popoutWidth: 360
+    popoutHeight: 400
     popoutContent: Component {
         PopoutComponent {
             id: popout
             headerText: "AI Quotas"
             showCloseButton: true
-            closePopout: function () { root.closePopout() }
+            closePopout: function () { popout.visible = false }
 
-            Flickable {
+            Column {
                 width: parent.width
-                height: parent.height
-                contentHeight: contentColumn.implicitHeight
-                clip: true
+                spacing: Theme.spacingM
 
-                Column {
-                    id: contentColumn
+                Repeater {
+                    model: root.openCodeEnabled ? root.openCodeEntries() : []
+                    delegate: Column {
+                        width: parent.width
+                        spacing: Theme.spacingXS
+                        Row {
+                            width: parent.width
+                            spacing: Theme.spacingM
+                            UsageRing {
+                                percentage: modelData.percentUsed || 0
+                                ringColor: root.color(modelData.percentUsed || 0)
+                                diameter: 28
+                                thickness: 3
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Column {
+                                width: parent.width - 40
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+                                StyledText {
+                                    text: modelData.name || "Unknown"
+                                    color: Theme.surfaceText
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    font.weight: Font.Medium
+                                }
+                                StyledText {
+                                    text: (modelData.percentRemaining != null ? modelData.percentRemaining + "% remaining" : "--")
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                }
+                                StyledText {
+                                    visible: root.showResetTime && modelData.resetAt > 0
+                                    text: "Resets in " + root.countdown(modelData.resetAt)
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                }
+                            }
+                        }
+                        Rectangle {
+                            width: parent.width
+                            height: 1
+                            color: Theme.outlineVariant
+                            opacity: 0.3
+                        }
+                    }
+                }
+
+                StyledText {
                     width: parent.width
-                    spacing: Theme.spacingM
+                    visible: root.openCodeEnabled && root.openCodeEntries().length === 0
+                    text: {
+                        if (!root.usageData) return "Loading..."
+                        var oc = root.usageData.opencode
+                        if (oc && oc.error) return oc.error
+                        if (oc && oc.status === "unavailable") return "No OpenCode config. Set workspace ID and auth cookie."
+                        return "No OpenCode data."
+                    }
+                    wrapMode: Text.WordWrap
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
 
-                    // --- OpenCode Section ---
-                    Repeater {
-                        model: root.openCodeEnabled ? root.allEntries() : []
-                        delegate: Column {
+                Repeater {
+                    model: root.deepSeekEnabled && root.deepSeekBalance() ? [root.deepSeekBalance()] : []
+                    delegate: Column {
+                        width: parent.width
+                        spacing: Theme.spacingXS
+                        Rectangle {
                             width: parent.width
-                            spacing: Theme.spacingXS
-
-                            Row {
-                                width: parent.width
-                                spacing: Theme.spacingM
-
-                                UsageRing {
-                                    percentage: modelData.unlimited ? 0 : modelData.percentUsed
-                                    ringColor: modelData.unlimited ? Theme.primary : root.color(modelData.percentUsed)
-                                    diameter: 32
-                                    thickness: 3.5
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Column {
-                                    width: parent.width - 44
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 2
-
-                                    StyledText {
-                                        text: modelData.name
-                                        color: Theme.surfaceText
-                                        font.pixelSize: Theme.fontSizeMedium
-                                        font.weight: Font.Medium
-                                    }
-
-                                    StyledText {
-                                        text: modelData.unlimited
-                                            ? "Unlimited"
-                                            : modelData.percentRemaining + "% remaining"
-                                        color: Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
-
-                                    StyledText {
-                                        visible: root.showResetTime && modelData.resetAt > 0 && !modelData.unlimited
-                                        property real resetAt: modelData.resetAt
-                                        text: "Resets in " + root.countdown(resetAt)
-                                        color: Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
-                                }
-                            }
-
-                            Rectangle {
-                                width: parent.width
-                                height: 1
-                                color: Theme.outlineVariant
-                                opacity: 0.3
-                            }
+                            height: 1
+                            color: Theme.outlineVariant
+                            opacity: 0.3
                         }
-                    }
-
-                    // OpenCode unavailable message.
-                    StyledText {
-                        width: parent.width
-                        visible: root.openCodeEnabled && root.openCodeProviders().length === 0
-                        text: root.usageData && root.usageData.opencode
-                            ? "No OpenCode data. Run `opencode-quota init` to set up."
-                            : "Loading OpenCode quotas..."
-                        wrapMode: Text.WordWrap
-                        color: Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-
-                    // --- DeepSeek Section ---
-                    Repeater {
-                        model: root.deepSeekEnabled && root.deepSeekBalance() ? [root.deepSeekBalance()] : []
-                        delegate: Column {
+                        Row {
                             width: parent.width
-                            spacing: Theme.spacingXS
-
+                            spacing: Theme.spacingM
                             Rectangle {
-                                width: parent.width
-                                height: 1
-                                color: Theme.outlineVariant
-                                opacity: 0.3
-                            }
-
-                            Row {
-                                width: parent.width
-                                spacing: Theme.spacingM
-
-                                Rectangle {
-                                    width: 32
-                                    height: 32
-                                    radius: Theme.cornerRadius
-                                    color: Theme.surfaceContainerHighest
-                                    anchors.verticalCenter: parent.verticalCenter
-
-                                    StyledText {
-                                        anchors.centerIn: parent
-                                        text: "DS"
-                                        color: Theme.primary
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.weight: Font.Bold
-                                    }
+                                width: 28
+                                height: 28
+                                radius: Theme.cornerRadius
+                                color: Theme.surfaceContainerHighest
+                                anchors.verticalCenter: parent.verticalCenter
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    text: "DS"
+                                    color: Theme.primary
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Bold
                                 }
-
-                                Column {
-                                    width: parent.width - 44
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 2
-
-                                    StyledText {
-                                        text: "DeepSeek"
-                                        color: Theme.surfaceText
-                                        font.pixelSize: Theme.fontSizeMedium
-                                        font.weight: Font.Medium
-                                    }
-
-                                    StyledText {
-                                        text: "Total: " + root.formatBalance(modelData)
-                                        color: Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
-
-                                    StyledText {
-                                        visible: parseFloat(modelData.granted) > 0
-                                        text: "Granted: " + modelData.currency + " " + parseFloat(modelData.granted).toFixed(2)
-                                        color: Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
-
-                                    StyledText {
-                                        visible: parseFloat(modelData.toppedUp) > 0
-                                        text: "Top-up: " + modelData.currency + " " + parseFloat(modelData.toppedUp).toFixed(2)
-                                        color: Theme.surfaceVariantText
-                                        font.pixelSize: Theme.fontSizeSmall
-                                    }
+                            }
+                            Column {
+                                width: parent.width - 40
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+                                StyledText {
+                                    text: "DeepSeek"
+                                    color: Theme.surfaceText
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    font.weight: Font.Medium
+                                }
+                                StyledText {
+                                    text: "Balance: " + root.formatBalance(modelData)
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
                                 }
                             }
                         }
                     }
+                }
 
-                    // DeepSeek unavailable message.
-                    StyledText {
-                        width: parent.width
-                        visible: root.deepSeekEnabled && !root.deepSeekBalance()
-                        text: root.deepSeekApiKey
-                            ? "Could not load DeepSeek balance."
-                            : "DeepSeek API key not set. Add it in plugin settings."
-                        wrapMode: Text.WordWrap
-                        color: Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
+                StyledText {
+                    width: parent.width
+                    visible: root.deepSeekEnabled && !root.deepSeekBalance() && root.deepSeekApiKey.length > 0
+                    text: "Could not load DeepSeek balance."
+                    wrapMode: Text.WordWrap
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                }
 
-                    // --- Footer ---
-                    StyledText {
-                        width: parent.width
-                        visible: root.usageData && (root.openCodeProviders().length > 0 || root.deepSeekBalance())
-                        text: {
-                            var ts = root.usageData ? root.usageData.captured_at || 0 : 0
-                            if (ts <= 0) return ""
-                            return "Updated " + Math.round(Date.now() / 1000 - ts) + "s ago"
-                        }
-                        color: Theme.surfaceTextMedium
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-
-                    StyledText {
-                        width: parent.width
-                        visible: !root.usageData || (!root.fetchFailed && root.openCodeProviders().length === 0 && !root.deepSeekBalance())
-                        text: root.fetchFailed
-                            ? "Could not fetch usage data."
-                            : "Loading usage..."
-                        wrapMode: Text.WordWrap
-                        color: Theme.surfaceVariantText
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
+                StyledText {
+                    width: parent.width
+                    visible: root.deepSeekEnabled && !root.deepSeekBalance() && root.deepSeekApiKey.length === 0
+                    text: "DeepSeek API key not set. Add it in plugin settings."
+                    wrapMode: Text.WordWrap
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
                 }
             }
         }
