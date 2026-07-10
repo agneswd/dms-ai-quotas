@@ -368,14 +368,17 @@ PluginComponent {
                 }
 
                 // Separator before DeepSeek
-                Rectangle {
+                Item {
                     width: parent.width
-                    height: 1
-                    color: Theme.outlineVariant
-                    opacity: 0.5
+                    height: Theme.spacingM
                     visible: root.deepSeekEnabled
-                    topMargin: Theme.spacingM
-                    bottomMargin: Theme.spacingM
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        height: 1
+                        color: Theme.outlineVariant
+                        opacity: 0.5
+                    }
                 }
 
                 // DeepSeek header
