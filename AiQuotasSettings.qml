@@ -79,6 +79,17 @@ PluginSettings {
         defaultValue: true
     }
 
+    SelectionSetting {
+        settingKey: "displayMode"
+        label: "Display Mode"
+        description: "Show used or remaining percentage"
+        options: [
+            { label: "Remaining (%)", value: "remaining" },
+            { label: "Used (%)", value: "used" }
+        ]
+        defaultValue: "remaining"
+    }
+
     StyledText {
         width: parent.width
         text: "Credentials"

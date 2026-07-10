@@ -19,6 +19,8 @@ PluginComponent {
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
+    property string displayMode: pluginData.displayMode || "remaining"
+    property bool showResetTime: pluginData.showResetTime !== false
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -136,6 +138,20 @@ PluginComponent {
         } catch (e) { return "--" }
     }
 
+    function pctStr(pct) {
+        try {
+            if (pct < 0) return "--"
+            return displayMode === "used" ? pct + "% used" : (100 - pct) + "% remaining"
+        } catch (e) { return "--" }
+    }
+
+    function pctVal(pct) {
+        try {
+            if (pct < 0) return -1
+            return displayMode === "used" ? pct : 100 - pct
+        } catch (e) { return -1 }
+    }
+
     function pinnedPct() {
         try {
             var e = pinnedEntry()
@@ -149,7 +165,7 @@ PluginComponent {
     horizontalBarPill: Component {
         StyledRect {
             id: pill
-            implicitWidth: hRow.implicitWidth + Theme.spacingM * 2
+            implicitWidth: hRow.implicitWidth + Theme.spacingXS * 2
             height: parent.widgetThickness
             radius: Theme.cornerRadius
             color: Theme.surfaceContainerHigh
@@ -179,7 +195,7 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pinnedPct()) + "%"
+                            text: Math.round(root.pctVal(root.pinnedPct())) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -223,7 +239,7 @@ PluginComponent {
         StyledRect {
             id: pillV
             width: parent.widgetThickness
-            implicitHeight: vCol.implicitHeight + Theme.spacingM * 2
+            implicitHeight: vCol.implicitHeight + Theme.spacingXS * 2
             radius: Theme.cornerRadius
             color: Theme.surfaceContainerHigh
 
@@ -250,7 +266,7 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pinnedPct()) + "%"
+                            text: Math.round(root.pctVal(root.pinnedPct())) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -297,6 +313,17 @@ PluginComponent {
                 width: parent.width
                 spacing: 0
 
+                // --- OpenCode section ---
+                StyledText {
+                    visible: root.openCodeEnabled && root.ocEntries().length > 0
+                    text: "OpenCode"
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.Bold
+                    topPadding: 0
+                    bottomPadding: Theme.spacingXS
+                }
+
                 // OpenCode all visible windows
                 Repeater {
                     model: root.openCodeEnabled ? root.visibleWindows() : []
@@ -318,7 +345,7 @@ PluginComponent {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
                                 StyledText {
-                                    text: (100 - (modelData.percentUsed || 0)) + "% remaining"
+                                    text: root.pctStr(modelData.percentUsed || 0)
                                     color: Theme.surfaceText
                                     font.pixelSize: Theme.fontSizeMedium
                                     font.weight: Font.Medium
@@ -352,18 +379,15 @@ PluginComponent {
                     bottomPadding: Theme.spacingS
                 }
 
-                // Separator before DeepSeek
-                Item {
-                    width: parent.width
-                    height: Theme.spacingL
-                    visible: root.deepSeekEnabled
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width
-                        height: 1
-                        color: Theme.outlineVariant
-                        opacity: 0.5
-                    }
+                // DeepSeek section
+                StyledText {
+                    visible: root.deepSeekEnabled && root.dsBalance()
+                    text: "DeepSeek"
+                    color: Theme.surfaceVariantText
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.Bold
+                    topPadding: Theme.spacingM
+                    bottomPadding: Theme.spacingXS
                 }
 
                 // DeepSeek balance
