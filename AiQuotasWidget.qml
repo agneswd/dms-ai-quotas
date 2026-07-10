@@ -167,31 +167,22 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
-                // OpenCode pinned window
+                // OpenCode pinned ring only
                 Repeater {
                     model: root.usageData && root.openCodeEnabled && root.pinnedPct() >= 0 ? [1] : []
                     delegate: Row {
-                        spacing: 5
+                        spacing: 4
                         UsageRing {
                             percentage: root.pinnedPct()
                             ringColor: root.clr(root.pinnedPct())
                             diameter: Math.max(16, Math.min(pill.height - 6, 24))
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        Column {
+                        StyledText {
+                            text: Math.round(root.pinnedPct()) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: -2
-                            StyledText {
-                                text: root.pinnedWindow
-                                color: Theme.surfaceText
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.Medium
-                            }
-                            StyledText {
-                                text: Math.round(root.pinnedPct()) + "%"
-                                color: Theme.surfaceTextMedium
-                                font.pixelSize: Theme.fontSizeTiny
-                            }
                         }
                     }
                 }
@@ -296,9 +287,9 @@ PluginComponent {
                 width: parent.width
                 spacing: 0
 
-                // OpenCode pinned entry
+                // OpenCode all visible windows
                 Repeater {
-                    model: root.openCodeEnabled && root.pinnedEntry() ? [root.pinnedEntry()] : []
+                    model: root.openCodeEnabled ? root.visibleWindows() : []
                     delegate: Column {
                         width: parent.width
                         spacing: Theme.spacingXS
