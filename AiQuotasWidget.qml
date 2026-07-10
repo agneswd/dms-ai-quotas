@@ -310,130 +310,148 @@ PluginComponent {
             closePopout: function () { popout.visible = false }
 
             Column {
-                width: parent.width
-                spacing: 0
+                    width: parent.width - Theme.spacingM * 2
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: Theme.spacingM
 
-                // --- OpenCode section ---
-                StyledText {
-                    visible: root.openCodeEnabled && root.ocEntries().length > 0
-                    text: "OpenCode"
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.weight: Font.Bold
-                    topPadding: 0
-                    bottomPadding: Theme.spacingXS
-                }
-
-                // OpenCode all visible windows
-                Repeater {
-                    model: root.openCodeEnabled ? root.visibleWindows() : []
-                    delegate: Column {
+                    // --- OpenCode card ---
+                    StyledRect {
+                        visible: root.openCodeEnabled
                         width: parent.width
-                        spacing: Theme.spacingXS
-                        Row {
-                            width: parent.width
-                            spacing: Theme.spacingM
-                            UsageRing {
-                                percentage: modelData.percentUsed || 0
-                                ringColor: root.clr(modelData.percentUsed || 0)
-                                diameter: 28
-                                thickness: 3
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Column {
-                                width: parent.width - 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 2
-                                StyledText {
-                                    text: root.pctStr(modelData.percentUsed || 0)
-                                    color: Theme.surfaceText
-                                    font.pixelSize: Theme.fontSizeMedium
-                                    font.weight: Font.Medium
-                                }
-                                StyledText {
-                                    visible: root.showResetTime && modelData.resetAt > 0
-                                    text: "Resets in " + root.cdown(modelData.resetAt)
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall
-                                }
-                            }
-                        }
-                    }
-                }
+                        height: ocCard.implicitHeight + Theme.spacingM * 2
+                        color: Theme.surfaceContainerHigh
 
-                // OpenCode unavailable
-                StyledText {
-                    width: parent.width
-                    visible: root.openCodeEnabled && root.ocEntries().length === 0
-                    text: {
-                        if (!root.usageData) return "Loading..."
-                        var o = root.usageData.opencode
-                        if (o && o.error) return o.error
-                        if (o && o.status === "unavailable") return "Set OpenCode credentials in plugin settings."
-                        return "No OpenCode data."
-                    }
-                    wrapMode: Text.WordWrap
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall
-                    topPadding: Theme.spacingS
-                    bottomPadding: Theme.spacingS
-                }
-
-                // DeepSeek section
-                StyledText {
-                    visible: root.deepSeekEnabled && root.dsBalance()
-                    text: "DeepSeek"
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall
-                    font.weight: Font.Bold
-                    topPadding: Theme.spacingM
-                    bottomPadding: Theme.spacingXS
-                }
-
-                // DeepSeek balance
-                Repeater {
-                    model: root.deepSeekEnabled && root.dsBalance() ? [root.dsBalance()] : []
-                    delegate: Row {
-                        width: parent.width
-                        spacing: Theme.spacingM
-                        Rectangle {
-                            width: 28; height: 28; radius: Theme.cornerRadius
-                            color: Theme.surfaceContainerHighest
-                            anchors.verticalCenter: parent.verticalCenter
-                            StyledText {
-                                anchors.centerIn: parent; text: "DS"
-                                color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
-                            }
-                        }
                         Column {
-                            width: parent.width - 40
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
-                            StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium }
+                            id: ocCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
                             StyledText {
-                                visible: parseFloat(modelData.granted) > 0
-                                text: "Granted: " + modelData.currency + " " + parseFloat(modelData.granted).toFixed(2)
-                                color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                visible: root.ocEntries().length > 0
+                                text: "OpenCode"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
                             }
+
+                            // OpenCode windows
+                            Repeater {
+                                model: root.ocEntries().length > 0 ? root.visibleWindows() : []
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    UsageRing {
+                                        percentage: modelData.percentUsed || 0
+                                        ringColor: root.clr(modelData.percentUsed || 0)
+                                        diameter: 28
+                                        thickness: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Column {
+                                        width: parent.width - 40
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 2
+                                        StyledText {
+                                            text: root.pctStr(modelData.percentUsed || 0)
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            font.weight: Font.Medium
+                                        }
+                                        StyledText {
+                                            visible: root.showResetTime && modelData.resetAt > 0
+                                            text: "Resets in " + root.cdown(modelData.resetAt)
+                                            color: Theme.surfaceVariantText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                    }
+                                }
+                            }
+
+                            // OpenCode unavailable
                             StyledText {
-                                visible: parseFloat(modelData.toppedUp) > 0
-                                text: "Top-up: " + modelData.currency + " " + parseFloat(modelData.toppedUp).toFixed(2)
-                                color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                visible: root.ocEntries().length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var o = root.usageData.opencode
+                                    if (o && o.error) return o.error
+                                    if (o && o.status === "unavailable") return "Set OpenCode credentials in plugin settings."
+                                    return "No OpenCode data."
+                                }
                             }
                         }
                     }
-                }
 
-                StyledText {
-                    width: parent.width
-                    visible: root.deepSeekEnabled && !root.dsBalance() && root.deepSeekApiKey.length === 0
-                    text: "Set DeepSeek API key in plugin settings."
-                    wrapMode: Text.WordWrap
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall
-                    topPadding: Theme.spacingS
-                }
-            }
+                    // --- DeepSeek card ---
+                    StyledRect {
+                        visible: root.deepSeekEnabled
+                        width: parent.width
+                        height: dsCard.implicitHeight + Theme.spacingM * 2
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: dsCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.dsBalance() != null
+                                text: "DeepSeek"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            // DeepSeek balance
+                            Repeater {
+                                model: root.dsBalance() ? [root.dsBalance()] : []
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    Rectangle {
+                                        width: 28; height: 28; radius: Theme.cornerRadius
+                                        color: Theme.surfaceContainerHighest
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        StyledText {
+                                            anchors.centerIn: parent; text: "DS"
+                                            color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
+                                        }
+                                    }
+                                    Column {
+                                        width: parent.width - 40
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 2
+                                        StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium }
+                                        StyledText {
+                                            visible: parseFloat(modelData.granted) > 0
+                                            text: "Granted: " + modelData.currency + " " + parseFloat(modelData.granted).toFixed(2)
+                                            color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                        StyledText {
+                                            visible: parseFloat(modelData.toppedUp) > 0
+                                            text: "Top-up: " + modelData.currency + " " + parseFloat(modelData.toppedUp).toFixed(2)
+                                            color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                    }
+                                }
+                            }
+
+                            // DeepSeek unavailable
+                            StyledText {
+                                visible: !root.dsBalance() && root.deepSeekApiKey.length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: "Set DeepSeek API key in plugin settings."
+                            }
+                        }
+                    }
         }
     }
 }
