@@ -12,13 +12,14 @@ Shows OpenCode rolling, weekly, and monthly usage percentages with reset countdo
 - DeepSeek balance card with total/granted/topped-up breakdown
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
+- All credentials configured from DMS settings - no config files needed
 
 ## Requirements
 
 - DankMaterialShell >= 1.5.0
-- [opencode-quota](https://github.com/slkiser/opencode-quota) (`npm i -g @slkiser/opencode-quota`)
-- `jq`
+- `curl` and `jq`
 - For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
+- For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
 
 ## Install
 
@@ -40,29 +41,30 @@ Then in DMS:
 |---------|---------|-------------|
 | OpenCode | on | Show OpenCode usage quotas |
 | DeepSeek | on | Show DeepSeek account balance |
-| DeepSeek API Key | (empty) | Your DeepSeek API key |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
 | Show Reset Countdown | on | Live countdown in the popout |
+| DeepSeek API Key | (empty) | Your DeepSeek API key |
+| OpenCode Workspace ID | (empty) | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
+| OpenCode Auth Cookie | (empty) | The `auth` cookie from opencode.ai |
+
+## How to get OpenCode credentials
+
+1. Open [opencode.ai](https://opencode.ai) in your browser and sign in
+2. Navigate to your workspace (e.g. `opencode.ai/workspace/wrk_abc123/go`)
+3. Copy `wrk_abc123` from the URL - that's your **Workspace ID**
+4. Open browser dev tools (F12) -> Application -> Cookies -> `opencode.ai`
+5. Copy the `auth` cookie value - that's your **Auth Cookie**
+6. Paste both into DMS Settings -> AI Quotas
 
 ## How it works
 
+The plugin scrapes the OpenCode workspace dashboard directly via `curl` and queries the DeepSeek balance API. No external npm packages required.
+
 ```
-opencode-quota show --json        --\
-                                     |---> fetch-usage.sh ---> cache JSON ---> Widget
-curl api.deepseek.com/user/balance --/
+curl opencode.ai/workspace/{id}/go  --\
+                                       |---> fetch-usage.sh ---> cache ---> Widget
+curl api.deepseek.com/user/balance  --/
 ```
-
-The plugin runs the fetch script on a timer. It calls `opencode-quota` for OpenCode usage data and curls the DeepSeek balance API, merges the results into a single JSON cache file, and renders it in the bar.
-
-## Setting up OpenCode quotas
-
-Run the init command to connect OpenCode to the quota plugin:
-
-```sh
-opencode-quota init
-```
-
-This sets up the local data sources that `opencode-quota` reads from. Restart OpenCode after running init.
 
 ## License
 

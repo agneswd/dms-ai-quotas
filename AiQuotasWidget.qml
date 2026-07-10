@@ -136,7 +136,14 @@ PluginComponent {
 
                 StyledText {
                     visible: !root.usageData
-                    text: "\u2733 --"
+                    text: "\u2733 -"
+                    color: Theme.surfaceTextMedium
+                    font.pixelSize: Theme.fontSizeMedium
+                }
+
+                StyledText {
+                    visible: root.usageData && root.pPct() < 0 && !root.deepSeekBalance()
+                    text: "\u2733 -"
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeMedium
                 }
@@ -195,7 +202,7 @@ PluginComponent {
                 spacing: Theme.spacingS
 
                 StyledText {
-                    visible: !root.usageData
+                    visible: !root.usageData || (root.usageData && root.pPct() < 0 && !root.dsBalance())
                     text: "\u2733"
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeMedium
@@ -308,7 +315,7 @@ PluginComponent {
                         if (!root.usageData) return "Loading..."
                         var o = root.usageData.opencode
                         if (o && o.error) return o.error
-                        if (o && o.status === "unavailable") return "No OpenCode config found."
+                        if (o && o.status === "unavailable") return "Set OpenCode credentials in plugin settings."
                         return "No OpenCode data."
                     }
                     wrapMode: Text.WordWrap

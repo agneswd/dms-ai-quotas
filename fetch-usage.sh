@@ -1,9 +1,9 @@
 #!/bin/sh
 # Fetch OpenCode Go usage and DeepSeek balance, merge, cache, and print.
 #
-# OpenCode Go: Scrapes the workspace dashboard at opencode.ai
-#   - Reads config from ~/.config/opencode-quota/opencode-go.json
-#     or env vars OPENCODE_GO_WORKSPACE_ID + OPENCODE_GO_AUTH_COOKIE
+# OpenCode Go: scrapes the workspace dashboard directly
+#   - Requires OPENCODE_GO_WORKSPACE_ID and OPENCODE_GO_AUTH_COOKIE env vars
+#   - Set these in DMS Settings > AI Quotas
 #   - Parses rolling/weekly/monthly usage from HTML response
 #
 # DeepSeek: GET https://api.deepseek.com/user/balance
@@ -14,8 +14,8 @@
 #   AIQ_OPENCODE_ENABLED    "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED    "1" to fetch DeepSeek (default: "1")
 #   DEEPSEEK_API_KEY        DeepSeek API key
-#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID (overrides config file)
-#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie (overrides config file)
+#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID (from plugin settings)
+#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie (from plugin settings)
 #   AIQ_CACHE_TTL           seconds before cache is stale (default: 55)
 #   AIQ_USAGE_MOCK          file with sample JSON (skips network; for tests)
 #
@@ -121,7 +121,7 @@ if [ "$oc_enabled" = "1" ]; then
             oc_data="{\"status\":\"error\",\"error\":\"Failed to fetch dashboard\"}"
         fi
     else
-        oc_data="{\"status\":\"unavailable\",\"error\":\"No OpenCode config found. Set OPENCODE_GO_WORKSPACE_ID + OPENCODE_GO_AUTH_COOKIE or create ~/.config/opencode-quota/opencode-go.json\"}"
+        oc_data="{\"status\":\"unavailable\",\"error\":\"Set OpenCode workspace ID and auth cookie in plugin settings\"}"
     fi
 fi
 
