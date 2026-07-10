@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell.Io
 import qs.Common
 import qs.Services
+import qs.Widgets
 import qs.Modules.Plugins
 
 PluginComponent {
@@ -29,11 +30,7 @@ PluginComponent {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            try {
-                fetchProcess.running = true
-            } catch (e) {
-                console.warn("aiQuotas: failed to start fetch:", e)
-            }
+            try { fetchProcess.running = true } catch (e) {}
         }
     }
 
@@ -49,34 +46,27 @@ PluginComponent {
         stdout: SplitParser {
             onRead: line => {
                 try {
-                    var trimmed = line.trim()
-                    if (trimmed.length === 0) return
-                    var parsed = JSON.parse(trimmed)
-                    root.usageData = parsed
+                    var t = line.trim()
+                    if (t.length === 0) return
+                    root.usageData = JSON.parse(t)
                     root.fetchFailed = false
-                } catch (e) {
-                    // Ignore partial lines from multi-line output.
-                }
+                } catch (e) {}
             }
         }
-        stderr: SplitParser {
-            onRead: line => {}
-        }
+        stderr: SplitParser { onRead: line => {} }
         onExited: code => {
-            if (code !== 0 && !root.usageData) {
-                root.fetchFailed = true
-            }
+            if (code !== 0 && !root.usageData) root.fetchFailed = true
         }
     }
 
     Component.onCompleted: {
         try {
-            var cached = pluginService.loadPluginState("aiQuotas", "lastData", null)
-            if (cached) root.usageData = cached
+            var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
+            if (c) root.usageData = c
         } catch (e) {}
     }
 
-    function openCodeEntries() {
+    function ocEntries() {
         try {
             if (!usageData || !usageData.opencode) return []
             if (usageData.opencode.status !== "ok") return []
@@ -84,58 +74,59 @@ PluginComponent {
         } catch (e) { return [] }
     }
 
-    function deepSeekBalance() {
+    function dsBalance() {
         try {
             if (!usageData || !usageData.deepseek) return null
             if (usageData.deepseek.status !== "ok") return null
-            if (!usageData.deepseek.balances || usageData.deepseek.balances.length === 0) return null
-            return usageData.deepseek.balances[0]
+            var b = usageData.deepseek.balances
+            if (!b || b.length === 0) return null
+            return b[0]
         } catch (e) { return null }
     }
 
-    function color(pct) {
+    function clr(pct) {
         if (pct >= 90) return Theme.error
         if (pct >= 70) return Theme.warning
         return Theme.primary
     }
 
-    function countdown(resetAt) {
+    function cdown(t) {
         try {
-            if (!resetAt) return "--"
-            var diff = resetAt - (Date.now() / 1000)
-            if (diff <= 0) return "now"
-            var h = Math.floor(diff / 3600)
-            var m = Math.floor((diff % 3600) / 60)
-            if (h > 0) return h + "h " + m + "m"
-            return m + "m"
+            if (!t) return "--"
+            var d = t - Date.now() / 1000
+            if (d <= 0) return "now"
+            var h = Math.floor(d / 3600)
+            var m = Math.floor((d % 3600) / 60)
+            return h > 0 ? h + "h " + m + "m" : m + "m"
         } catch (e) { return "--" }
     }
 
-    function formatBalance(b) {
+    function fmtBal(b) {
         try {
             if (!b) return "--"
             return b.currency + " " + (parseFloat(b.total) || 0).toFixed(2)
         } catch (e) { return "--" }
     }
 
-    function primaryPct() {
+    function pPct() {
         try {
-            var entries = openCodeEntries()
-            if (entries.length === 0) return -1
-            return entries[0].percentUsed || 0
+            var e = ocEntries()
+            return e.length > 0 ? (e[0].percentUsed || 0) : -1
         } catch (e) { return -1 }
     }
+
+    // --- Bar Pills ---
 
     horizontalBarPill: Component {
         StyledRect {
             id: pill
-            implicitWidth: row.implicitWidth + Theme.spacingM * 2
+            implicitWidth: hRow.implicitWidth + Theme.spacingM * 2
             height: parent.widgetThickness
             radius: Theme.cornerRadius
             color: Theme.surfaceContainerHigh
 
-            RowLayout {
-                id: row
+            Row {
+                id: hRow
                 anchors.centerIn: parent
                 spacing: Theme.spacingS
 
@@ -147,18 +138,17 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.primaryPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.pPct() >= 0 ? [1] : []
                     delegate: Row {
                         spacing: 4
-                        Layout.alignment: Qt.AlignVCenter
                         UsageRing {
-                            percentage: root.primaryPct()
-                            ringColor: root.color(root.primaryPct())
+                            percentage: root.pPct()
+                            ringColor: root.clr(root.pPct())
                             diameter: Math.max(12, Math.min(pill.height - 9, 18))
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.primaryPct()) + "%"
+                            text: Math.round(root.pPct()) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -167,19 +157,16 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.deepSeekEnabled && root.deepSeekBalance() ? [1] : []
+                    model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
                     delegate: Row {
                         spacing: 4
-                        Layout.alignment: Qt.AlignVCenter
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
+                            width: 8; height: 8; radius: 4
                             color: Theme.primary
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: root.formatBalance(root.deepSeekBalance())
+                            text: root.fmtBal(root.dsBalance())
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -194,12 +181,12 @@ PluginComponent {
         StyledRect {
             id: pillV
             width: parent.widgetThickness
-            implicitHeight: col.implicitHeight + Theme.spacingM * 2
+            implicitHeight: vCol.implicitHeight + Theme.spacingM * 2
             radius: Theme.cornerRadius
             color: Theme.surfaceContainerHigh
 
-            ColumnLayout {
-                id: col
+            Column {
+                id: vCol
                 anchors.centerIn: parent
                 spacing: Theme.spacingS
 
@@ -211,18 +198,17 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.primaryPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.pPct() >= 0 ? [1] : []
                     delegate: Column {
                         spacing: 1
-                        Layout.alignment: Qt.AlignHCenter
                         UsageRing {
-                            percentage: root.primaryPct()
-                            ringColor: root.color(root.primaryPct())
+                            percentage: root.pPct()
+                            ringColor: root.clr(root.pPct())
                             diameter: Math.max(12, Math.min(pillV.width - 8, 18))
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.primaryPct()) + "%"
+                            text: Math.round(root.pPct()) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -231,20 +217,17 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.deepSeekEnabled && root.deepSeekBalance() ? [1] : []
+                    model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
                     delegate: Column {
                         spacing: 1
-                        Layout.alignment: Qt.AlignHCenter
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
+                            width: 8; height: 8; radius: 4
                             color: Theme.primary
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
                             text: {
-                                var b = root.deepSeekBalance()
+                                var b = root.dsBalance()
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
@@ -256,6 +239,8 @@ PluginComponent {
             }
         }
     }
+
+    // --- Popout ---
 
     popoutWidth: 360
     popoutHeight: 400
@@ -271,7 +256,7 @@ PluginComponent {
                 spacing: Theme.spacingM
 
                 Repeater {
-                    model: root.openCodeEnabled ? root.openCodeEntries() : []
+                    model: root.openCodeEnabled ? root.ocEntries() : []
                     delegate: Column {
                         width: parent.width
                         spacing: Theme.spacingXS
@@ -280,7 +265,7 @@ PluginComponent {
                             spacing: Theme.spacingM
                             UsageRing {
                                 percentage: modelData.percentUsed || 0
-                                ringColor: root.color(modelData.percentUsed || 0)
+                                ringColor: root.clr(modelData.percentUsed || 0)
                                 diameter: 28
                                 thickness: 3
                                 anchors.verticalCenter: parent.verticalCenter
@@ -296,35 +281,30 @@ PluginComponent {
                                     font.weight: Font.Medium
                                 }
                                 StyledText {
-                                    text: (modelData.percentRemaining != null ? modelData.percentRemaining + "% remaining" : "--")
+                                    text: modelData.percentRemaining != null ? modelData.percentRemaining + "% remaining" : "--"
                                     color: Theme.surfaceVariantText
                                     font.pixelSize: Theme.fontSizeSmall
                                 }
                                 StyledText {
                                     visible: root.showResetTime && modelData.resetAt > 0
-                                    text: "Resets in " + root.countdown(modelData.resetAt)
+                                    text: "Resets in " + root.cdown(modelData.resetAt)
                                     color: Theme.surfaceVariantText
                                     font.pixelSize: Theme.fontSizeSmall
                                 }
                             }
                         }
-                        Rectangle {
-                            width: parent.width
-                            height: 1
-                            color: Theme.outlineVariant
-                            opacity: 0.3
-                        }
+                        Rectangle { width: parent.width; height: 1; color: Theme.outlineVariant; opacity: 0.3 }
                     }
                 }
 
                 StyledText {
                     width: parent.width
-                    visible: root.openCodeEnabled && root.openCodeEntries().length === 0
+                    visible: root.openCodeEnabled && root.ocEntries().length === 0
                     text: {
                         if (!root.usageData) return "Loading..."
-                        var oc = root.usageData.opencode
-                        if (oc && oc.error) return oc.error
-                        if (oc && oc.status === "unavailable") return "No OpenCode config. Set workspace ID and auth cookie."
+                        var o = root.usageData.opencode
+                        if (o && o.error) return o.error
+                        if (o && o.status === "unavailable") return "No OpenCode config found."
                         return "No OpenCode data."
                     }
                     wrapMode: Text.WordWrap
@@ -333,48 +313,29 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.deepSeekEnabled && root.deepSeekBalance() ? [root.deepSeekBalance()] : []
+                    model: root.deepSeekEnabled && root.dsBalance() ? [root.dsBalance()] : []
                     delegate: Column {
                         width: parent.width
                         spacing: Theme.spacingXS
-                        Rectangle {
-                            width: parent.width
-                            height: 1
-                            color: Theme.outlineVariant
-                            opacity: 0.3
-                        }
+                        Rectangle { width: parent.width; height: 1; color: Theme.outlineVariant; opacity: 0.3 }
                         Row {
                             width: parent.width
                             spacing: Theme.spacingM
                             Rectangle {
-                                width: 28
-                                height: 28
-                                radius: Theme.cornerRadius
+                                width: 28; height: 28; radius: Theme.cornerRadius
                                 color: Theme.surfaceContainerHighest
                                 anchors.verticalCenter: parent.verticalCenter
                                 StyledText {
-                                    anchors.centerIn: parent
-                                    text: "DS"
-                                    color: Theme.primary
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.weight: Font.Bold
+                                    anchors.centerIn: parent; text: "DS"
+                                    color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
                                 }
                             }
                             Column {
                                 width: parent.width - 40
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 2
-                                StyledText {
-                                    text: "DeepSeek"
-                                    color: Theme.surfaceText
-                                    font.pixelSize: Theme.fontSizeMedium
-                                    font.weight: Font.Medium
-                                }
-                                StyledText {
-                                    text: "Balance: " + root.formatBalance(modelData)
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall
-                                }
+                                StyledText { text: "DeepSeek"; color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium; font.weight: Font.Medium }
+                                StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
                             }
                         }
                     }
@@ -382,16 +343,7 @@ PluginComponent {
 
                 StyledText {
                     width: parent.width
-                    visible: root.deepSeekEnabled && !root.deepSeekBalance() && root.deepSeekApiKey.length > 0
-                    text: "Could not load DeepSeek balance."
-                    wrapMode: Text.WordWrap
-                    color: Theme.surfaceVariantText
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-
-                StyledText {
-                    width: parent.width
-                    visible: root.deepSeekEnabled && !root.deepSeekBalance() && root.deepSeekApiKey.length === 0
+                    visible: root.deepSeekEnabled && !root.dsBalance() && root.deepSeekApiKey.length === 0
                     text: "DeepSeek API key not set. Add it in plugin settings."
                     wrapMode: Text.WordWrap
                     color: Theme.surfaceVariantText
