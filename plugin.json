@@ -1,0 +1,20 @@
+{
+  "id": "codexbar",
+  "name": "CodexBar",
+  "description": "AI coding provider usage limits (Codex, Claude, Cursor, DeepSeek, OpenCode, etc.) in your bar.",
+  "version": "1.0.0",
+  "author": "agneswd",
+  "type": "composite",
+  "capabilities": ["dankbar-widget", "daemon"],
+  "components": {
+    "daemon": "./CodexBarDaemon.qml",
+    "widget": "./CodexBarWidget.qml"
+  },
+  "settings": "./CodexBarSettings.qml",
+  "startupCheck": "./StartupCheck.qml",
+  "icon": "speed",
+  "requires_dms": ">=1.5.0",
+  "requires": ["codexbar", "jq"],
+  "dependencies": ["codexbar"],
+  "permissions": ["settings_read", "settings_write", "process"]
+}
