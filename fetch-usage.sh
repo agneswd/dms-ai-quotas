@@ -48,7 +48,7 @@ if [ "$oc_enabled" = "1" ]; then
     if [ $? -eq 0 ] && [ -n "$oc_json" ]; then
         # Extract the opencode-go provider entries (or all providers with data).
         # We want providers that have status "ok" and entries.
-        oc_data=$(echo "$oc_json" | jq '{
+        oc_data=$(echo "$oc_json" | jq -c '{
             status: "ok",
             providers: [(.providers | to_entries[] | select(.value.status == "ok" and .value.entries != null) | {
                 id: .key,
@@ -66,7 +66,7 @@ if [ "$ds_enabled" = "1" ] && [ -n "$ds_key" ]; then
         -H "Accept: application/json" \
         https://api.deepseek.com/user/balance 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$ds_resp" ]; then
-        ds_data=$(echo "$ds_resp" | jq '{
+        ds_data=$(echo "$ds_resp" | jq -c '{
             status: (if .is_available then "ok" else "error" end),
             isAvailable: .is_available,
             balances: [.balance_infos[] | {
@@ -80,7 +80,7 @@ if [ "$ds_enabled" = "1" ] && [ -n "$ds_key" ]; then
 fi
 
 # --- Merge and write cache ---
-out=$(jq -n \
+out=$(jq -c -n \
     --argjson now "$now" \
     --argjson oc "$oc_data" \
     --argjson ds "$ds_data" \
