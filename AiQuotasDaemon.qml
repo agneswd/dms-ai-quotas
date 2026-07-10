@@ -28,14 +28,8 @@ PluginComponent {
         interval: root.refreshInterval * 1000
         running: true
         repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            try {
-                fetchProcess.running = true
-            } catch (e) {
-                console.warn("aiQuotas: failed to start fetch:", e)
-            }
-        }
+        triggeredOnStart: false
+        onTriggered: { try { fetchProcess.running = true } catch (e) {} }
     }
 
     Process {
@@ -52,26 +46,22 @@ PluginComponent {
         stdout: SplitParser {
             onRead: line => {
                 try {
-                    var trimmed = line.trim()
-                    if (trimmed.length === 0) return
-                    var parsed = JSON.parse(trimmed)
-                    root.usageData = parsed
-                    pluginService.savePluginState("aiQuotas", "lastData", parsed)
-                } catch (e) {
-                    // Ignore partial lines.
-                }
+                    var t = line.trim()
+                    if (t.length === 0) return
+                    root.usageData = JSON.parse(t)
+                    pluginService.savePluginState("aiQuotas", "lastData", root.usageData)
+                } catch (e) {}
             }
         }
-        stderr: SplitParser {
-            onRead: line => {}
-        }
+        stderr: SplitParser { onRead: line => {} }
         onExited: code => {}
     }
 
     Component.onCompleted: {
         try {
-            var cached = pluginService.loadPluginState("aiQuotas", "lastData", null)
-            if (cached) root.usageData = cached
+            var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
+            if (c) root.usageData = c
         } catch (e) {}
+        try { fetchProcess.running = true } catch (e) {}
     }
 }

@@ -9,7 +9,7 @@ PluginSettings {
 
     StyledText {
         width: parent.width
-        text: "AI Quotas Settings"
+        text: "AI Quotas"
         font.pixelSize: Theme.fontSizeLarge
         font.weight: Font.Bold
         color: Theme.surfaceText
@@ -19,6 +19,39 @@ PluginSettings {
         settingKey: "openCodeEnabled"
         label: "OpenCode"
         description: "Show OpenCode usage quotas"
+        defaultValue: true
+    }
+
+    SelectionSetting {
+        settingKey: "pinnedWindow"
+        label: "Bar Pill Window"
+        description: "Which OpenCode window to show in the bar"
+        options: [
+            { label: "Rolling (5h)", value: "Rolling" },
+            { label: "Weekly", value: "Weekly" },
+            { label: "Monthly", value: "Monthly" }
+        ]
+        defaultValue: "Rolling"
+    }
+
+    ToggleSetting {
+        settingKey: "showRolling"
+        label: "Show Rolling (5h)"
+        description: "Show rolling usage in the popout"
+        defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "showWeekly"
+        label: "Show Weekly"
+        description: "Show weekly usage in the popout"
+        defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "showMonthly"
+        label: "Show Monthly"
+        description: "Show monthly usage in the popout"
         defaultValue: true
     }
 
@@ -46,6 +79,15 @@ PluginSettings {
         defaultValue: true
     }
 
+    StyledText {
+        width: parent.width
+        text: "Credentials"
+        font.pixelSize: Theme.fontSizeMedium
+        font.weight: Font.Bold
+        color: Theme.surfaceText
+        topPadding: Theme.spacingM
+    }
+
     StringSetting {
         settingKey: "deepSeekApiKey"
         label: "DeepSeek API Key"
@@ -57,7 +99,7 @@ PluginSettings {
     StringSetting {
         settingKey: "openCodeWorkspaceId"
         label: "OpenCode Workspace ID"
-        description: "From the URL: opencode.ai/workspace/YOUR_ID/go"
+        description: "From URL: opencode.ai/workspace/YOUR_ID/go"
         placeholder: "wrk_..."
         defaultValue: ""
     }
@@ -65,7 +107,7 @@ PluginSettings {
     StringSetting {
         settingKey: "openCodeAuthCookie"
         label: "OpenCode Auth Cookie"
-        description: "The 'auth' cookie from opencode.ai (browser dev tools > Application > Cookies)"
+        description: "auth cookie from opencode.ai (dev tools > Application > Cookies)"
         placeholder: "Paste your auth cookie"
         defaultValue: ""
     }

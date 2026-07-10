@@ -1,25 +1,18 @@
 #!/bin/sh
 # Fetch OpenCode Go usage and DeepSeek balance, merge, cache, and print.
 #
-# OpenCode Go: scrapes the workspace dashboard directly
-#   - Requires OPENCODE_GO_WORKSPACE_ID and OPENCODE_GO_AUTH_COOKIE env vars
-#   - Set these in DMS Settings > AI Quotas
-#   - Parses rolling/weekly/monthly usage from HTML response
-#
+# OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
-#   - Reads API key from DEEPSEEK_API_KEY env var
 #
 # Env:
-#   CACHE_FILE              cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
-#   AIQ_OPENCODE_ENABLED    "1" to fetch OpenCode (default: "1")
-#   AIQ_DEEPSEEK_ENABLED    "1" to fetch DeepSeek (default: "1")
-#   DEEPSEEK_API_KEY        DeepSeek API key
-#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID (from plugin settings)
-#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie (from plugin settings)
-#   AIQ_CACHE_TTL           seconds before cache is stale (default: 55)
-#   AIQ_USAGE_MOCK          file with sample JSON (skips network; for tests)
-#
-# Exit: 0 ok, 1 no data, 2 fetch/parse error.
+#   CACHE_FILE                cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
+#   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
+#   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
+#   DEEPSEEK_API_KEY          DeepSeek API key
+#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
+#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
+#   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
+#   AIQ_USAGE_MOCK            file with sample JSON (for tests)
 set -u
 
 cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/usage.json}"
@@ -27,7 +20,6 @@ ttl="${AIQ_CACHE_TTL:-55}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null
 now=$(date +%s)
 
-# Return cached data if fresh.
 if [ -s "$cache" ]; then
     prev=$(jq -r '.captured_at // 0' "$cache" 2>/dev/null)
     case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
@@ -37,7 +29,6 @@ if [ -s "$cache" ]; then
     fi
 fi
 
-# Use mock data if provided (for testing).
 if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
     cat "$AIQ_USAGE_MOCK"
     exit 0
@@ -47,7 +38,7 @@ oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
 ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
 
 # ============================================================
-# OpenCode Go: scrape workspace dashboard
+# OpenCode Go
 # ============================================================
 oc_data='{"status":"unavailable"}'
 if [ "$oc_enabled" = "1" ]; then
@@ -63,70 +54,62 @@ if [ "$oc_enabled" = "1" ]; then
             "$url" 2>/dev/null)
 
         if [ -n "$html" ]; then
-            # Parse SolidJS SSR format: rollingUsage:$R[N]={usagePercent: N, resetInSec: N}
-            parse_window() {
+            # Extract usagePercent and resetInSec for each window.
+            # Returns "pct reset" or empty.
+            extract() {
                 local label="$1"
-                local html_content="$2"
-                # Try usagePercent first, then resetInSec first.
-                local result
-                result=$(printf '%s' "$html_content" | grep -oP "${label}:\\\$R\[\d+\]=\{[^}]*usagePercent:\s*(-?\d+(?:\.\d+)?)[^}]*resetInSec:\s*(-?\d+(?:\.\d+)?)\}" | head -1)
-                if [ -z "$result" ]; then
-                    result=$(printf '%s' "$html_content" | grep -oP "${label}:\\\$R\[\d+\]=\{[^}]*resetInSec:\s*(-?\d+(?:\.\d+)?)[^}]*usagePercent:\s*(-?\d+(?:\.\d+)?)\}" | head -1)
-                    if [ -n "$result" ]; then
-                        local reset pct
-                        reset=$(printf '%s' "$result" | grep -oP 'resetInSec:\s*\K-?\d+(?:\.\d+)?')
-                        pct=$(printf '%s' "$result" | grep -oP 'usagePercent:\s*\K-?\d+(?:\.\d+)?')
-                        [ -n "$pct" ] && [ -n "$reset" ] && printf '%s %s' "$pct" "$reset"
-                        return
-                    fi
+                local pct="" reset=""
+                # Match: rollingUsage:$R[N]={...usagePercent: N...resetInSec: N...}
+                local block
+                block=$(printf '%s' "$html" | sed -n "s/.*${label}:\$R\[[0-9]*\]={\([^}]*\)}.*/\1/p" | head -1)
+                if [ -n "$block" ]; then
+                    pct=$(printf '%s' "$block" | sed -n 's/.*usagePercent:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
+                    reset=$(printf '%s' "$block" | sed -n 's/.*resetInSec:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
                 fi
-                if [ -n "$result" ]; then
-                    local pct reset
-                    pct=$(printf '%s' "$result" | grep -oP 'usagePercent:\s*\K-?\d+(?:\.\d+)?')
-                    reset=$(printf '%s' "$result" | grep -oP 'resetInSec:\s*\K-?\d+(?:\.\d+)?')
-                    [ -n "$pct" ] && [ -n "$reset" ] && printf '%s %s' "$pct" "$reset"
+                if [ -n "$pct" ] && [ -n "$reset" ]; then
+                    printf '%s %s' "$pct" "$reset"
                 fi
             }
 
-            rolling=$(parse_window "rollingUsage" "$html")
-            weekly=$(parse_window "weeklyUsage" "$html")
-            monthly=$(parse_window "monthlyUsage" "$html")
+            rolling=$(extract "rollingUsage")
+            weekly=$(extract "weeklyUsage")
+            monthly=$(extract "monthlyUsage")
 
             # Build JSON entries.
             entries="["
             first=1
-
-            for window_data in "rolling:$rolling" "weekly:$weekly" "monthly:$monthly"; do
-                label="${window_data%%:*}"
-                data="${window_data#*:}"
+            for pair in "Rolling:$rolling" "Weekly:$weekly" "Monthly:$monthly"; do
+                label="${pair%%:*}"
+                data="${pair#*:}"
                 [ -z "$data" ] && continue
-                pct="${data%% *}"
-                reset="${data#* }"
+                pct=$(printf '%s' "$data" | cut -d' ' -f1)
+                reset=$(printf '%s' "$data" | cut -d' ' -f2)
                 [ -z "$pct" ] || [ -z "$reset" ] && continue
+
+                remaining=$(printf '%s' "$pct" | awk '{printf "%d", 100 - $1}')
 
                 [ "$first" = "0" ] && entries="$entries,"
                 first=0
                 reset_at=$((now + ${reset%.*}))
-                entries="$entries{\"name\":\"$label\",\"percentRemaining\":$(echo "100 - $pct" | bc 2>/dev/null || echo "0"),\"percentUsed\":$pct,\"resetAt\":$reset_at}"
+                entries="$entries{\"name\":\"$label\",\"percentUsed\":$pct,\"resetAt\":$reset_at}"
             done
-
             entries="$entries]"
 
             if [ "$entries" != "[]" ]; then
                 oc_data="{\"status\":\"ok\",\"entries\":$entries}"
             else
-                oc_data="{\"status\":\"error\",\"error\":\"No usage windows found in dashboard\"}"
+                oc_data="{\"status\":\"error\",\"error\":\"Could not parse usage from dashboard\"}"
             fi
         else
             oc_data="{\"status\":\"error\",\"error\":\"Failed to fetch dashboard\"}"
         fi
     else
-        oc_data="{\"status\":\"unavailable\",\"error\":\"Set OpenCode workspace ID and auth cookie in plugin settings\"}"
+        oc_data="{\"status\":\"unavailable\",\"error\":\"Set OpenCode credentials in plugin settings\"}"
     fi
 fi
 
 # ============================================================
-# DeepSeek: query balance API
+# DeepSeek
 # ============================================================
 ds_data='{"status":"unavailable"}'
 if [ "$ds_enabled" = "1" ]; then
@@ -152,7 +135,7 @@ if [ "$ds_enabled" = "1" ]; then
 fi
 
 # ============================================================
-# Merge and write cache (compact single-line JSON)
+# Merge and write cache
 # ============================================================
 out=$(jq -c -n \
     --argjson now "$now" \

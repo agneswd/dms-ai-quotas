@@ -12,6 +12,10 @@ PluginComponent {
     property int refreshInterval: pluginData.refreshInterval || 60
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property bool showRolling: pluginData.showRolling !== false
+    property bool showWeekly: pluginData.showWeekly !== false
+    property bool showMonthly: pluginData.showMonthly !== false
+    property string pinnedWindow: pluginData.pinnedWindow || "Rolling"
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
@@ -30,10 +34,8 @@ PluginComponent {
         interval: root.refreshInterval * 1000
         running: true
         repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            try { fetchProcess.running = true } catch (e) {}
-        }
+        triggeredOnStart: false
+        onTriggered: { try { fetchProcess.running = true } catch (e) {} }
     }
 
     Process {
@@ -68,6 +70,8 @@ PluginComponent {
             var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
             if (c) root.usageData = c
         } catch (e) {}
+        // Fetch immediately on startup.
+        try { fetchProcess.running = true } catch (e) {}
     }
 
     function ocEntries() {
@@ -86,6 +90,26 @@ PluginComponent {
             if (!b || b.length === 0) return null
             return b[0]
         } catch (e) { return null }
+    }
+
+    function findEntry(name) {
+        var entries = ocEntries()
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].name === name) return entries[i]
+        }
+        return null
+    }
+
+    function pinnedEntry() {
+        return findEntry(pinnedWindow)
+    }
+
+    function visibleWindows() {
+        var out = []
+        if (showRolling) { var e = findEntry("Rolling"); if (e) out.push(e) }
+        if (showWeekly) { var e = findEntry("Weekly"); if (e) out.push(e) }
+        if (showMonthly) { var e = findEntry("Monthly"); if (e) out.push(e) }
+        return out
     }
 
     function clr(pct) {
@@ -112,10 +136,11 @@ PluginComponent {
         } catch (e) { return "--" }
     }
 
-    function pPct() {
+    function pinnedPct() {
         try {
-            var e = ocEntries()
-            return e.length > 0 ? (e[0].percentUsed || 0) : -1
+            var e = pinnedEntry()
+            if (!e) return -1
+            return e.percentUsed || 0
         } catch (e) { return -1 }
     }
 
@@ -134,6 +159,7 @@ PluginComponent {
                 anchors.centerIn: parent
                 spacing: Theme.spacingS
 
+                // Placeholder when nothing configured
                 StyledText {
                     visible: !root.usageData
                     text: "\u2733 -"
@@ -141,32 +167,36 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
-                StyledText {
-                    visible: root.usageData && root.pPct() < 0 && !root.deepSeekBalance()
-                    text: "\u2733 -"
-                    color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
-                }
-
+                // OpenCode pinned window
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.pPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.pinnedPct() >= 0 ? [1] : []
                     delegate: Row {
-                        spacing: 4
+                        spacing: 5
                         UsageRing {
-                            percentage: root.pPct()
-                            ringColor: root.clr(root.pPct())
-                            diameter: Math.max(12, Math.min(pill.height - 9, 18))
+                            percentage: root.pinnedPct()
+                            ringColor: root.clr(root.pinnedPct())
+                            diameter: Math.max(16, Math.min(pill.height - 6, 24))
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        StyledText {
-                            text: Math.round(root.pPct()) + "%"
-                            color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                        Column {
                             anchors.verticalCenter: parent.verticalCenter
+                            spacing: -2
+                            StyledText {
+                                text: root.pinnedWindow
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Medium
+                            }
+                            StyledText {
+                                text: Math.round(root.pinnedPct()) + "%"
+                                color: Theme.surfaceTextMedium
+                                font.pixelSize: Theme.fontSizeTiny
+                            }
                         }
                     }
                 }
 
+                // DeepSeek balance
                 Repeater {
                     model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
                     delegate: Row {
@@ -202,24 +232,24 @@ PluginComponent {
                 spacing: Theme.spacingS
 
                 StyledText {
-                    visible: !root.usageData || (root.usageData && root.pPct() < 0 && !root.dsBalance())
+                    visible: !root.usageData
                     text: "\u2733"
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.pPct() >= 0 ? [1] : []
+                    model: root.usageData && root.openCodeEnabled && root.pinnedPct() >= 0 ? [1] : []
                     delegate: Column {
                         spacing: 1
                         UsageRing {
-                            percentage: root.pPct()
-                            ringColor: root.clr(root.pPct())
-                            diameter: Math.max(12, Math.min(pillV.width - 8, 18))
+                            percentage: root.pinnedPct()
+                            ringColor: root.clr(root.pinnedPct())
+                            diameter: Math.max(16, Math.min(pillV.width - 4, 24))
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pPct()) + "%"
+                            text: Math.round(root.pinnedPct()) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -254,7 +284,7 @@ PluginComponent {
     // --- Popout ---
 
     popoutWidth: 360
-    popoutHeight: 400
+    popoutHeight: 450
     popoutContent: Component {
         PopoutComponent {
             id: popout
@@ -264,10 +294,21 @@ PluginComponent {
 
             Column {
                 width: parent.width
-                spacing: Theme.spacingM
+                spacing: 0
 
+                // OpenCode header
+                StyledText {
+                    visible: root.openCodeEnabled && root.visibleWindows().length > 0
+                    text: "OpenCode"
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Bold
+                    bottomPadding: Theme.spacingS
+                }
+
+                // OpenCode entries
                 Repeater {
-                    model: root.openCodeEnabled ? root.ocEntries() : []
+                    model: root.openCodeEnabled ? root.visibleWindows() : []
                     delegate: Column {
                         width: parent.width
                         spacing: Theme.spacingXS
@@ -292,7 +333,7 @@ PluginComponent {
                                     font.weight: Font.Medium
                                 }
                                 StyledText {
-                                    text: modelData.percentRemaining != null ? modelData.percentRemaining + "% remaining" : "--"
+                                    text: (100 - (modelData.percentUsed || 0)) + "% remaining"
                                     color: Theme.surfaceVariantText
                                     font.pixelSize: Theme.fontSizeSmall
                                 }
@@ -308,6 +349,7 @@ PluginComponent {
                     }
                 }
 
+                // OpenCode unavailable
                 StyledText {
                     width: parent.width
                     visible: root.openCodeEnabled && root.ocEntries().length === 0
@@ -321,32 +363,60 @@ PluginComponent {
                     wrapMode: Text.WordWrap
                     color: Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall
+                    topPadding: Theme.spacingS
+                    bottomPadding: Theme.spacingS
                 }
 
+                // Separator before DeepSeek
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.outlineVariant
+                    opacity: 0.5
+                    visible: root.deepSeekEnabled
+                    topMargin: Theme.spacingM
+                    bottomMargin: Theme.spacingM
+                }
+
+                // DeepSeek header
+                StyledText {
+                    visible: root.deepSeekEnabled
+                    text: "DeepSeek"
+                    color: Theme.surfaceText
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Bold
+                    bottomPadding: Theme.spacingS
+                }
+
+                // DeepSeek balance
                 Repeater {
                     model: root.deepSeekEnabled && root.dsBalance() ? [root.dsBalance()] : []
-                    delegate: Column {
+                    delegate: Row {
                         width: parent.width
-                        spacing: Theme.spacingXS
-                        Rectangle { width: parent.width; height: 1; color: Theme.outlineVariant; opacity: 0.3 }
-                        Row {
-                            width: parent.width
-                            spacing: Theme.spacingM
-                            Rectangle {
-                                width: 28; height: 28; radius: Theme.cornerRadius
-                                color: Theme.surfaceContainerHighest
-                                anchors.verticalCenter: parent.verticalCenter
-                                StyledText {
-                                    anchors.centerIn: parent; text: "DS"
-                                    color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
-                                }
+                        spacing: Theme.spacingM
+                        Rectangle {
+                            width: 28; height: 28; radius: Theme.cornerRadius
+                            color: Theme.surfaceContainerHighest
+                            anchors.verticalCenter: parent.verticalCenter
+                            StyledText {
+                                anchors.centerIn: parent; text: "DS"
+                                color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
                             }
-                            Column {
-                                width: parent.width - 40
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: 2
-                                StyledText { text: "DeepSeek"; color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium; font.weight: Font.Medium }
-                                StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
+                        }
+                        Column {
+                            width: parent.width - 40
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 2
+                            StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium }
+                            StyledText {
+                                visible: parseFloat(modelData.granted) > 0
+                                text: "Granted: " + modelData.currency + " " + parseFloat(modelData.granted).toFixed(2)
+                                color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                            }
+                            StyledText {
+                                visible: parseFloat(modelData.toppedUp) > 0
+                                text: "Top-up: " + modelData.currency + " " + parseFloat(modelData.toppedUp).toFixed(2)
+                                color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
                             }
                         }
                     }
@@ -355,10 +425,11 @@ PluginComponent {
                 StyledText {
                     width: parent.width
                     visible: root.deepSeekEnabled && !root.dsBalance() && root.deepSeekApiKey.length === 0
-                    text: "DeepSeek API key not set. Add it in plugin settings."
+                    text: "Set DeepSeek API key in plugin settings."
                     wrapMode: Text.WordWrap
                     color: Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall
+                    topPadding: Theme.spacingS
                 }
             }
         }
