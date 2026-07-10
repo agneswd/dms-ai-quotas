@@ -22,6 +22,11 @@ PluginComponent {
     property var usageData: null
     property bool fetchFailed: false
     property real now: Date.now() / 1000
+    property string pluginDir: Qt.resolvedUrl(".").toString().replace("file://", "")
+
+    function closePopout() {
+        root.closePopout()
+    }
 
     Timer {
         id: tickTimer
@@ -48,7 +53,7 @@ PluginComponent {
             "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
             "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
             "AIQ_USAGE_MOCK=${AIQ_USAGE_MOCK:-} " +
-            "sh '" + Qt.resolvedUrl("fetch-usage.sh") + "'"
+            "sh '" + root.pluginDir + "fetch-usage.sh'"
         ]
         stdout: SplitParser {
             onRead: line => {
@@ -298,6 +303,7 @@ PluginComponent {
             id: popout
             headerText: "AI Quotas"
             showCloseButton: true
+            closePopout: function () { root.closePopout() }
 
             Flickable {
                 width: parent.width
