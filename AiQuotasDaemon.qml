@@ -12,6 +12,8 @@ PluginComponent {
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
+    property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
+    property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -42,6 +44,8 @@ PluginComponent {
             "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
             "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
             "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
+            "OPENCODE_GO_WORKSPACE_ID='" + root.openCodeWorkspaceId + "' " +
+            "OPENCODE_GO_AUTH_COOKIE='" + root.openCodeAuthCookie + "' " +
             "AIQ_USAGE_MOCK=${AIQ_USAGE_MOCK:-} " +
             "sh '" + root.pluginDir + "fetch-usage.sh'"
         ]

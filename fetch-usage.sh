@@ -51,21 +51,8 @@ ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
 # ============================================================
 oc_data='{"status":"unavailable"}'
 if [ "$oc_enabled" = "1" ]; then
-    # Resolve workspace ID and auth cookie from env or config file.
     ws_id="${OPENCODE_GO_WORKSPACE_ID:-}"
     auth="${OPENCODE_GO_AUTH_COOKIE:-}"
-
-    if [ -z "$ws_id" ] || [ -z "$auth" ]; then
-        # Try config file locations.
-        for cfg_dir in "${XDG_CONFIG_HOME:-$HOME/.config}" "$HOME/.config" "$HOME/.local/share"; do
-            cfg="$cfg_dir/opencode-quota/opencode-go.json"
-            if [ -f "$cfg" ]; then
-                ws_id=$(jq -r '.workspaceId // ""' "$cfg" 2>/dev/null)
-                auth=$(jq -r '.authCookie // ""' "$cfg" 2>/dev/null)
-                [ -n "$ws_id" ] && [ -n "$auth" ] && break
-            fi
-        done
-    fi
 
     if [ -n "$ws_id" ] && [ -n "$auth" ]; then
         url="https://opencode.ai/workspace/$(printf '%s' "$ws_id" | jq -sRr @uri)/go"
