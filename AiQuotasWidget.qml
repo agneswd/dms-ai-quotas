@@ -187,6 +187,16 @@ PluginComponent {
                     }
                 }
 
+                // Separator between OpenCode and DeepSeek
+                Rectangle {
+                    visible: root.usageData && root.openCodeEnabled && root.deepSeekEnabled && root.dsBalance()
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
                 // DeepSeek balance
                 Repeater {
                     model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
