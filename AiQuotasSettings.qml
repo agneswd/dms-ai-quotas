@@ -17,15 +17,15 @@ PluginSettings {
 
     ToggleSetting {
         settingKey: "openCodeEnabled"
-        label: "OpenCode"
-        description: "Show OpenCode usage quotas"
+        label: "OpenCode Go"
+        description: "Show OpenCode Go usage quotas"
         defaultValue: true
     }
 
     SelectionSetting {
         settingKey: "pinnedWindow"
         label: "Bar Pill Window"
-        description: "Which OpenCode window to show in the bar"
+        description: "Which OpenCode Go window to show in the bar"
         options: [
             { label: "Rolling (5h)", value: "Rolling" },
             { label: "Weekly", value: "Weekly" },
@@ -57,8 +57,8 @@ PluginSettings {
 
     ToggleSetting {
         settingKey: "deepSeekEnabled"
-        label: "DeepSeek"
-        description: "Show DeepSeek account balance"
+        label: "DeepSeek API"
+        description: "Show DeepSeek API account balance"
         defaultValue: true
     }
 

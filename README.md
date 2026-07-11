@@ -1,25 +1,25 @@
 # dms-ai-quotas
 
-OpenCode usage quotas and DeepSeek balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+OpenCode Go usage quotas and DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 ## Supported Providers
 
 | Provider | Type | Data shown |
 |----------|------|------------|
-| **OpenCode** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
-| **DeepSeek** | Account balance | Total, granted, and topped-up balance |
+| **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
+| **DeepSeek API** | Account balance | Total, granted, and topped-up balance |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
 
 ## Features
 
-- Merged bar pill showing pinned OpenCode usage ring + DeepSeek balance indicator
+- Merged bar pill showing pinned OpenCode Go usage ring + DeepSeek API balance indicator
 - Separator between OpenCode and DeepSeek sections in the pill
-- Click to open a popout with per-window OpenCode detail in styled cards
+- Click to open a popout with per-window OpenCode Go detail in styled cards
 - Choose which window to pin in the bar pill (Rolling / Weekly / Monthly)
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
-- Live reset countdowns for each OpenCode window
-- DeepSeek balance card with total/granted/topped-up breakdown
+- Live reset countdowns for each OpenCode Go window (days/hours/minutes)
+- DeepSeek API balance card with total/granted/topped-up breakdown and logo
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
 - Toggle which OpenCode windows appear in the popout

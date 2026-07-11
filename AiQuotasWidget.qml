@@ -125,8 +125,10 @@ PluginComponent {
             if (!t) return "--"
             var d = t - Date.now() / 1000
             if (d <= 0) return "now"
-            var h = Math.floor(d / 3600)
+            var days = Math.floor(d / 86400)
+            var h = Math.floor((d % 86400) / 3600)
             var m = Math.floor((d % 3600) / 60)
+            if (days > 0) return days + "d " + h + "h"
             return h > 0 ? h + "h " + m + "m" : m + "m"
         } catch (e) { return "--" }
     }
@@ -218,9 +220,12 @@ PluginComponent {
                     model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
                     delegate: Row {
                         spacing: 4
-                        Rectangle {
-                            width: 8; height: 8; radius: 4
-                            color: Theme.primary
+                        Image {
+                            source: root.pluginDir + "deepseek-logo.svg"
+                            sourceSize.width: 14
+                            sourceSize.height: 14
+                            width: 14; height: 14
+                            fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
@@ -278,9 +283,12 @@ PluginComponent {
                     model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
                     delegate: Column {
                         spacing: 1
-                        Rectangle {
-                            width: 8; height: 8; radius: 4
-                            color: Theme.primary
+                        Image {
+                            source: root.pluginDir + "deepseek-logo.svg"
+                            sourceSize.width: 12
+                            sourceSize.height: 12
+                            width: 12; height: 12
+                            fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
@@ -330,7 +338,7 @@ PluginComponent {
 
                             StyledText {
                                 visible: root.ocEntries().length > 0
-                                text: "OpenCode"
+                                text: "OpenCode Go"
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.Bold
@@ -403,7 +411,7 @@ PluginComponent {
 
                             StyledText {
                                 visible: root.dsBalance() != null
-                                text: "DeepSeek"
+                                text: "DeepSeek API"
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.Bold
@@ -416,12 +424,15 @@ PluginComponent {
                                     width: parent.width
                                     spacing: Theme.spacingM
                                     Rectangle {
-                                        width: 28; height: 28; radius: Theme.cornerRadius
+                                        width: 28; height: 28; radius: 14
                                         color: Theme.surfaceContainerHighest
                                         anchors.verticalCenter: parent.verticalCenter
-                                        StyledText {
-                                            anchors.centerIn: parent; text: "DS"
-                                            color: Theme.primary; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold
+                                        Image {
+                                            anchors.centerIn: parent
+                                            source: root.pluginDir + "deepseek-logo.svg"
+                                            sourceSize.width: 20
+                                            sourceSize.height: 20
+                                            fillMode: Image.PreserveAspectFit
                                         }
                                     }
                                     Column {
