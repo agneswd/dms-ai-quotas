@@ -2,6 +2,10 @@
 
 OpenCode Go usage quotas and DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
+</p>
+
 ## Supported Providers
 
 | Provider | Type | Data shown |
