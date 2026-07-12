@@ -85,13 +85,19 @@ if [ "$codex_enabled" = "1" ]; then
                         elif (.reset_after_seconds? != null) then ($now + (.reset_after_seconds | number))
                         else 0
                         end;
+                    def quota_name($fallback; $window):
+                        if $fallback == "Code Review" then $fallback
+                        elif (($window.limit_window_seconds? | number) >= 604800) then "Weekly"
+                        elif (($window.limit_window_seconds? | number) >= 14400) then "5h"
+                        else $fallback
+                        end;
                     def entry($name; $window):
                         if ($window | type) != "object" then empty
                         else
                             ($window.used_percent? |
                                 if . == null then empty else number end) as $used |
                             {
-                                name: $name,
+                                name: quota_name($name; $window),
                                 percentUsed: (if $used < 0 then 0 elif $used > 100 then 100 else $used end),
                                 resetAt: ($window | reset_at)
                             }
