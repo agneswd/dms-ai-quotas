@@ -92,6 +92,19 @@ PluginComponent {
         Qt.callLater(root.requestFetch)
     }
 
+    // PluginComponent injects pluginData after child completion during startup.
+    Connections {
+        target: root
+        function onPluginDataChanged() {
+            if (root.pluginData && Object.keys(root.pluginData).length > 0) {
+                Qt.callLater(function () {
+                    root.loadPinState()
+                    root.ensureSelectedProvider()
+                })
+            }
+        }
+    }
+
     Connections {
         target: root.pluginService
         enabled: root.pluginService !== null
