@@ -18,8 +18,8 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 
 ## Features
 
-- Merged bar pill showing Codex and OpenCode usage rings plus DeepSeek API balance
-- Codex 5-hour usage ring in the bar pill, with 5-hour, weekly, and code review limits in the popout
+- Merged bar pill showing provider logos, pinned percentages, and DeepSeek API balance
+- Codex and OpenCode pinned percentages in the bar pill, with all supported limits in the popout
 - Separators between provider sections in the pill
 - Click to open a tabbed provider popout with clean per-limit detail cards
 - Pin any Codex, OpenCode, or DeepSeek limit directly from its popout card
