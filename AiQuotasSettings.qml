@@ -29,39 +29,6 @@ PluginSettings {
         defaultValue: true
     }
 
-    SelectionSetting {
-        settingKey: "pinnedWindow"
-        label: "Bar Pill Window"
-        description: "Which OpenCode Go window to show in the bar"
-        options: [
-            { label: "Rolling (5h)", value: "Rolling" },
-            { label: "Weekly", value: "Weekly" },
-            { label: "Monthly", value: "Monthly" }
-        ]
-        defaultValue: "Rolling"
-    }
-
-    ToggleSetting {
-        settingKey: "showRolling"
-        label: "Show Rolling (5h)"
-        description: "Show rolling usage in the popout"
-        defaultValue: true
-    }
-
-    ToggleSetting {
-        settingKey: "showWeekly"
-        label: "Show Weekly"
-        description: "Show weekly usage in the popout"
-        defaultValue: true
-    }
-
-    ToggleSetting {
-        settingKey: "showMonthly"
-        label: "Show Monthly"
-        description: "Show monthly usage in the popout"
-        defaultValue: true
-    }
-
     ToggleSetting {
         settingKey: "deepSeekEnabled"
         label: "DeepSeek API"
@@ -81,8 +48,8 @@ PluginSettings {
 
     ToggleSetting {
         settingKey: "showResetTime"
-        label: "Show Reset Countdown"
-        description: "Show live reset countdown in the popout"
+        label: "Show Reset Times"
+        description: "Show reset date and time in the popout"
         defaultValue: true
     }
 

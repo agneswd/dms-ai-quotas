@@ -13,10 +13,6 @@ PluginComponent {
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
-    property bool showRolling: pluginData.showRolling !== false
-    property bool showWeekly: pluginData.showWeekly !== false
-    property bool showMonthly: pluginData.showMonthly !== false
-    property string pinnedWindow: pluginData.pinnedWindow || "Rolling"
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
@@ -31,6 +27,9 @@ PluginComponent {
 
     property var usageData: null
     property bool fetchFailed: false
+    property bool fetchQueued: false
+    property var pinState: ({})
+    property string selectedProvider: "codex"
 
     Timer {
         id: refreshTimer
@@ -38,20 +37,20 @@ PluginComponent {
         running: true
         repeat: true
         triggeredOnStart: false
-        onTriggered: { try { fetchProcess.running = true } catch (e) {} }
+        onTriggered: root.requestFetch()
     }
 
     Process {
         id: fetchProcess
-        command: ["sh", "-c",
-            "AIQ_CODEX_ENABLED='" + (root.codexEnabled ? "1" : "0") + "' " +
-            "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
-            "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
-            "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
-            "OPENCODE_GO_WORKSPACE_ID='" + root.openCodeWorkspaceId + "' " +
-            "OPENCODE_GO_AUTH_COOKIE='" + root.openCodeAuthCookie + "' " +
-            "AIQ_USAGE_MOCK=${AIQ_USAGE_MOCK:-} " +
-            "sh '" + root.pluginDir + "fetch-usage.sh'"
+        command: [
+            "env",
+            "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
+            "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
+            "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
+            "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
+            "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
+            "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
+            "sh", root.pluginDir + "fetch-usage.sh"
         ]
         stdout: SplitParser {
             onRead: line => {
@@ -66,16 +65,138 @@ PluginComponent {
         stderr: SplitParser { onRead: line => {} }
         onExited: code => {
             if (code !== 0 && !root.usageData) root.fetchFailed = true
+            if (root.fetchQueued) {
+                root.fetchQueued = false
+                Qt.callLater(root.requestFetch)
+            }
         }
     }
 
+    function requestFetch() {
+        if (fetchProcess.running) {
+            fetchQueued = true
+            return
+        }
+        fetchProcess.running = true
+    }
+
     Component.onCompleted: {
+        root.loadPinState()
+        root.ensureSelectedProvider()
         try {
             var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
             if (c) root.usageData = c
         } catch (e) {}
-        // Fetch immediately on startup.
-        try { fetchProcess.running = true } catch (e) {}
+        // PluginComponent loads pluginData after child completion; defer the first request.
+        Qt.callLater(root.requestFetch)
+    }
+
+    Connections {
+        target: root.pluginService
+        enabled: root.pluginService !== null
+        function onPluginDataChanged(changedPluginId) {
+            if (changedPluginId === "aiQuotas") {
+                Qt.callLater(function () {
+                    root.loadPinState()
+                    root.ensureSelectedProvider()
+                    root.requestFetch()
+                })
+            }
+        }
+    }
+
+    function defaultPinState() {
+        var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
+        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"] }
+    }
+
+    function savedSetting(key, fallback) {
+        try {
+            if (pluginService && pluginService.loadPluginData) {
+                var value = pluginService.loadPluginData("aiQuotas", key, fallback)
+                return value === undefined || value === null ? fallback : value
+            }
+        } catch (e) {}
+        return pluginData && pluginData[key] !== undefined && pluginData[key] !== null
+            ? pluginData[key] : fallback
+    }
+
+    function loadPinState() {
+        var raw = savedSetting("pinnedLimits", null)
+        if (typeof raw === "string") {
+            try { raw = JSON.parse(raw) } catch (e) { raw = null }
+        }
+        var defaults = defaultPinState()
+        var next = {}
+        var providers = ["codex", "opencode", "deepseek"]
+        for (var i = 0; i < providers.length; i++) {
+            var provider = providers[i]
+            next[provider] = raw && Array.isArray(raw[provider]) ? raw[provider] : defaults[provider]
+        }
+        pinState = next
+    }
+
+    function savePinState() {
+        if (pluginService && pluginService.savePluginData)
+            pluginService.savePluginData("aiQuotas", "pinnedLimits", JSON.stringify(pinState))
+    }
+
+    function isPinned(provider, name) {
+        var pins = pinState[provider] || []
+        return pins.indexOf(name) >= 0
+    }
+
+    function togglePin(provider, name) {
+        var next = {}
+        var providers = ["codex", "opencode", "deepseek"]
+        for (var i = 0; i < providers.length; i++)
+            next[providers[i]] = (pinState[providers[i]] || []).slice()
+        var pins = next[provider] || []
+        var index = pins.indexOf(name)
+        if (index >= 0) pins.splice(index, 1)
+        else pins.push(name)
+        next[provider] = pins
+        pinState = next
+        savePinState()
+    }
+
+    function pinnedEntries(provider, entries) {
+        var out = []
+        var pins = pinState[provider] || []
+        for (var i = 0; i < entries.length; i++) {
+            if (pins.indexOf(entries[i].name) >= 0) out.push(entries[i])
+        }
+        return out
+    }
+
+    function pinnedCodexEntries() { return pinnedEntries("codex", codexEntries()) }
+    function pinnedOpenCodeEntries() { return pinnedEntries("opencode", ocEntries()) }
+    function deepSeekPinned() { return isPinned("deepseek", "balance") }
+
+    function providerEnabled(provider) {
+        if (provider === "codex") return codexEnabled
+        if (provider === "opencode") return openCodeEnabled
+        if (provider === "deepseek") return deepSeekEnabled
+        return false
+    }
+
+    function providerTabs() {
+        var out = []
+        if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "codex-logo.svg" })
+        if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "opencode-logo.svg" })
+        if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "deepseek-logo.svg" })
+        return out
+    }
+
+    function ensureSelectedProvider() {
+        if (providerEnabled(selectedProvider)) return
+        var providers = ["codex", "opencode", "deepseek"]
+        for (var i = 0; i < providers.length; i++) {
+            if (providerEnabled(providers[i])) {
+                selectedProvider = providers[i]
+                return
+            }
+        }
     }
 
     function codexEntries() {
@@ -86,36 +207,8 @@ PluginComponent {
         } catch (e) { return [] }
     }
 
-    function codexEntry(name) {
-        var entries = codexEntries()
-        for (var i = 0; i < entries.length; i++) {
-            if (entries[i].name === name) return entries[i]
-        }
-        return null
-    }
-
-    function codexPrimary() {
-        return codexEntry("5h")
-    }
-
-    function codexPct() {
-        try {
-            var e = codexPrimary()
-            if (!e || e.percentUsed === undefined || e.percentUsed === null) return -1
-            return e.percentUsed
-        } catch (e) { return -1 }
-    }
-
-    function hasCodex() {
-        return codexEnabled && codexPct() >= 0
-    }
-
-    function hasOpenCode() {
-        return openCodeEnabled && pinnedPct() >= 0
-    }
-
     function hasDeepSeek() {
-        return deepSeekEnabled && dsBalance() != null
+        return deepSeekEnabled && deepSeekPinned() && dsBalance() != null
     }
 
     function ocEntries() {
@@ -128,12 +221,33 @@ PluginComponent {
 
     function dsBalance() {
         try {
-            if (!usageData || !usageData.deepseek) return null
-            if (usageData.deepseek.status !== "ok") return null
-            var b = usageData.deepseek.balances
-            if (!b || b.length === 0) return null
-            return b[0]
+            var balances = dsBalances()
+            return balances.length > 0 ? balances[0] : null
         } catch (e) { return null }
+    }
+
+    function dsBalances() {
+        try {
+            if (!usageData || !usageData.deepseek) return []
+            if (usageData.deepseek.status !== "ok") return []
+            return usageData.deepseek.balances || []
+        } catch (e) { return [] }
+    }
+
+    function dsAvailabilityLabel() {
+        try {
+            if (!usageData || !usageData.deepseek) return "Waiting for balance data"
+            if (usageData.deepseek.isAvailable === true) return "Available for API calls"
+            if (usageData.deepseek.isAvailable === false) return "Insufficient balance for API calls"
+            return "Availability unknown"
+        } catch (e) { return "Availability unknown" }
+    }
+
+    function dsAvailabilityColor() {
+        try {
+            return usageData && usageData.deepseek && usageData.deepseek.isAvailable === false
+                ? Theme.error : Theme.primary
+        } catch (e) { return Theme.surfaceVariantText }
     }
 
     function findEntry(name) {
@@ -144,16 +258,23 @@ PluginComponent {
         return null
     }
 
-    function pinnedEntry() {
-        return findEntry(pinnedWindow)
+    function visibleWindows() {
+        return ocEntries()
     }
 
-    function visibleWindows() {
-        var out = []
-        if (showRolling) { var e = findEntry("Rolling"); if (e) out.push(e) }
-        if (showWeekly) { var e = findEntry("Weekly"); if (e) out.push(e) }
-        if (showMonthly) { var e = findEntry("Monthly"); if (e) out.push(e) }
-        return out
+    function ocLabel(entry) {
+        try {
+            return entry.name === "Rolling" ? "Rolling (5h)" : entry.name
+        } catch (e) { return "OpenCode" }
+    }
+
+    function codexLabel(entry) {
+        try {
+            if (entry.name === "5h") return "5 hour usage limit"
+            if (entry.name === "Weekly") return "Weekly usage limit"
+            if (entry.name === "Code Review") return "Code review usage limit"
+            return entry.name + " usage limit"
+        } catch (e) { return "Codex usage limit" }
     }
 
     function clr(pct) {
@@ -175,10 +296,36 @@ PluginComponent {
         } catch (e) { return "--" }
     }
 
+    function resetLabel(t) {
+        try {
+            if (!t) return "Reset time unavailable"
+            if (t <= Date.now() / 1000) return "Resets now"
+            var d = new Date(t * 1000)
+            var h = d.getHours()
+            var suffix = h >= 12 ? "PM" : "AM"
+            h = h % 12 || 12
+            var minutes = ("0" + d.getMinutes()).slice(-2)
+            var time = h + ":" + minutes + " " + suffix
+            var today = new Date()
+            if (d.toDateString() === today.toDateString()) return "Resets " + time
+            var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            return "Resets " + months[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() + " " + time
+        } catch (e) { return "Resets in " + cdown(t) }
+    }
+
     function fmtBal(b) {
         try {
             if (!b) return "--"
-            return b.currency + " " + (parseFloat(b.total) || 0).toFixed(2)
+            return fmtMoney(b.total, b.currency)
+        } catch (e) { return "--" }
+    }
+
+    function fmtMoney(value, currency) {
+        try {
+            var amount = parseFloat(value)
+            if (!isFinite(amount)) return "--"
+            var suffix = currency === "USD" ? "$" : (currency === "CNY" ? "¥" : (currency || ""))
+            return amount.toFixed(2) + suffix
         } catch (e) { return "--" }
     }
 
@@ -196,12 +343,10 @@ PluginComponent {
         } catch (e) { return -1 }
     }
 
-    function pinnedPct() {
+    function limitProgress(pct) {
         try {
-            var e = pinnedEntry()
-            if (!e) return -1
-            return e.percentUsed || 0
-        } catch (e) { return -1 }
+            return Math.max(0, Math.min(100, pctVal(pct)))
+        } catch (e) { return 0 }
     }
 
     // --- Bar Pills ---
@@ -229,17 +374,19 @@ PluginComponent {
 
                 // Codex 5-hour limit
                 Repeater {
-                    model: root.hasCodex() ? [1] : []
+                    model: root.pinnedCodexEntries()
                     delegate: Row {
                         spacing: 4
-                        UsageRing {
-                            percentage: root.codexPct()
-                            ringColor: root.clr(root.codexPct())
-                            diameter: Math.max(16, Math.min(pill.height - 6, 24))
+                        Image {
+                            source: root.pluginDir + "codex-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: "C " + Math.round(root.pctVal(root.codexPct())) + "%"
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -249,7 +396,7 @@ PluginComponent {
 
                 // Separator before OpenCode or DeepSeek
                 Rectangle {
-                    visible: root.hasCodex() && (root.hasOpenCode() || root.hasDeepSeek())
+                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -259,17 +406,19 @@ PluginComponent {
 
                 // OpenCode pinned ring only
                 Repeater {
-                    model: root.hasOpenCode() ? [1] : []
+                    model: root.pinnedOpenCodeEntries()
                     delegate: Row {
                         spacing: 4
-                        UsageRing {
-                            percentage: root.pinnedPct()
-                            ringColor: root.clr(root.pinnedPct())
-                            diameter: Math.max(16, Math.min(pill.height - 6, 24))
+                        Image {
+                            source: root.pluginDir + "opencode-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(root.pinnedPct())) + "%"
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                             anchors.verticalCenter: parent.verticalCenter
@@ -279,7 +428,7 @@ PluginComponent {
 
                 // Separator between OpenCode and DeepSeek
                 Rectangle {
-                    visible: root.hasOpenCode() && root.hasDeepSeek()
+                    visible: root.pinnedOpenCodeEntries().length > 0 && root.hasDeepSeek()
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -333,17 +482,19 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.hasCodex() ? [1] : []
+                    model: root.pinnedCodexEntries()
                     delegate: Column {
                         spacing: 1
-                        UsageRing {
-                            percentage: root.codexPct()
-                            ringColor: root.clr(root.codexPct())
-                            diameter: Math.max(16, Math.min(pillV.width - 4, 24))
+                        Image {
+                            source: root.pluginDir + "codex-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: "C " + Math.round(root.pctVal(root.codexPct())) + "%"
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -352,17 +503,19 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.hasOpenCode() ? [1] : []
+                    model: root.pinnedOpenCodeEntries()
                     delegate: Column {
                         spacing: 1
-                        UsageRing {
-                            percentage: root.pinnedPct()
-                            ringColor: root.clr(root.pinnedPct())
-                            diameter: Math.max(16, Math.min(pillV.width - 4, 24))
+                        Image {
+                            source: root.pluginDir + "opencode-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(root.pinnedPct())) + "%"
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -413,9 +566,65 @@ PluginComponent {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: Theme.spacingM
 
+                    Row {
+                        id: providerTabsRow
+                        width: parent.width
+                        height: 36
+                        spacing: Theme.spacingXS
+
+                        Repeater {
+                            model: root.providerTabs()
+                            delegate: Rectangle {
+                                width: (providerTabsRow.width - Theme.spacingXS * (root.providerTabs().length - 1)) / root.providerTabs().length
+                                height: providerTabsRow.height
+                                radius: Theme.cornerRadius
+                                color: root.selectedProvider === modelData.id
+                                    ? Theme.surfaceSelected
+                                    : (tabMouse.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHigh)
+                                border.color: root.selectedProvider === modelData.id
+                                    ? Theme.outlineMedium : Theme.outlineVariant
+                                border.width: 1
+
+                                Image {
+                                    id: tabIcon
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: Theme.spacingS
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    source: root.pluginDir + modelData.icon
+                                    sourceSize.width: 17
+                                    sourceSize.height: 17
+                                    width: 17; height: 17
+                                    fillMode: Image.PreserveAspectFit
+                                }
+
+                                StyledText {
+                                    anchors.left: tabIcon.right
+                                    anchors.leftMargin: Theme.spacingXS
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: Theme.spacingXS
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData.label
+                                    color: root.selectedProvider === modelData.id
+                                        ? Theme.surfaceText : Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                }
+
+                                MouseArea {
+                                    id: tabMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.selectedProvider = modelData.id
+                                }
+                            }
+                        }
+                    }
+
                     // --- Codex card ---
                     StyledRect {
-                        visible: root.codexEnabled
+                        visible: root.selectedProvider === "codex" && root.codexEnabled
                         width: parent.width
                         height: codexCard.implicitHeight + Theme.spacingM * 2
                         radius: Theme.cornerRadius
@@ -438,32 +647,82 @@ PluginComponent {
 
                             Repeater {
                                 model: root.codexEntries()
-                                delegate: Row {
+                                delegate: Column {
                                     width: parent.width
-                                    spacing: Theme.spacingM
-                                    UsageRing {
-                                        percentage: modelData.percentUsed || 0
-                                        ringColor: root.clr(modelData.percentUsed || 0)
-                                        diameter: 28
-                                        thickness: 3
-                                        anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.spacingS
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingM
+                                        Image {
+                                            source: root.pluginDir + "codex-logo.svg"
+                                            sourceSize.width: 28
+                                            sourceSize.height: 28
+                                            width: 28; height: 28
+                                            fillMode: Image.PreserveAspectFit
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Column {
+                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            StyledText {
+                                                text: root.codexLabel(modelData)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                            StyledText {
+                                                text: root.pctStr(modelData.percentUsed || 0)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeLarge
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 28; height: 28; radius: 14
+                                            color: root.isPinned("codex", modelData.name)
+                                                ? Theme.surfaceSelected
+                                                : (codexPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                            border.color: root.isPinned("codex", modelData.name)
+                                                ? Theme.outlineMedium : Theme.outlineVariant
+                                            border.width: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            MouseArea {
+                                                id: codexPinArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.togglePin("codex", modelData.name)
+                                            }
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: "push_pin"
+                                                size: 17
+                                                color: root.isPinned("codex", modelData.name)
+                                                    ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned("codex", modelData.name) ? 0 : 45
+                                            }
+                                        }
                                     }
-                                    Column {
-                                        width: parent.width - 40
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
-                                        StyledText {
-                                            text: modelData.name + ": " + root.pctStr(modelData.percentUsed || 0)
-                                            color: Theme.surfaceText
-                                            font.pixelSize: Theme.fontSizeMedium
-                                            font.weight: Font.Medium
+                                    Rectangle {
+                                        id: codexProgressTrack
+                                        width: parent.width
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.outlineVariant
+                                        Rectangle {
+                                            width: codexProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.primary
                                         }
-                                        StyledText {
-                                            visible: root.showResetTime && modelData.resetAt > 0
-                                            text: "Resets in " + root.cdown(modelData.resetAt)
-                                            color: Theme.surfaceVariantText
-                                            font.pixelSize: Theme.fontSizeSmall
-                                        }
+                                    }
+                                    StyledText {
+                                        visible: root.showResetTime && modelData.resetAt > 0
+                                        text: root.resetLabel(modelData.resetAt)
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
                                     }
                                 }
                             }
@@ -472,11 +731,19 @@ PluginComponent {
                                 visible: root.codexEntries().length === 0
                                 width: parent.width
                                 wrapMode: Text.WordWrap
-                                color: Theme.surfaceVariantText
+                                color: {
+                                    var c = root.usageData && root.usageData.codex
+                                    return c && (c.reason === "not_authenticated" || c.reason === "auth_expired")
+                                        ? Theme.warning : Theme.surfaceVariantText
+                                }
                                 font.pixelSize: Theme.fontSizeSmall
                                 text: {
                                     if (!root.usageData) return "Loading..."
                                     var c = root.usageData.codex
+                                    if (c && c.reason === "not_authenticated")
+                                        return "Codex is not connected.\nRun codex login in a terminal, then wait for the next refresh."
+                                    if (c && c.reason === "auth_expired")
+                                        return "Codex login expired.\nRun codex login again, then wait for the next refresh."
                                     if (c && c.error) return c.error
                                     return "No Codex usage data."
                                 }
@@ -486,7 +753,7 @@ PluginComponent {
 
                     // --- OpenCode card ---
                     StyledRect {
-                        visible: root.openCodeEnabled
+                        visible: root.selectedProvider === "opencode" && root.openCodeEnabled
                         width: parent.width
                         height: ocCard.implicitHeight + Theme.spacingM * 2
                         radius: Theme.cornerRadius
@@ -509,32 +776,82 @@ PluginComponent {
                             // OpenCode windows
                             Repeater {
                                 model: root.ocEntries().length > 0 ? root.visibleWindows() : []
-                                delegate: Row {
+                                delegate: Column {
                                     width: parent.width
-                                    spacing: Theme.spacingM
-                                    UsageRing {
-                                        percentage: modelData.percentUsed || 0
-                                        ringColor: root.clr(modelData.percentUsed || 0)
-                                        diameter: 28
-                                        thickness: 3
-                                        anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.spacingS
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingM
+                                        Image {
+                                            source: root.pluginDir + "opencode-logo.svg"
+                                            sourceSize.width: 28
+                                            sourceSize.height: 28
+                                            width: 28; height: 28
+                                            fillMode: Image.PreserveAspectFit
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Column {
+                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            StyledText {
+                                                text: root.ocLabel(modelData)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                            StyledText {
+                                                text: root.pctStr(modelData.percentUsed || 0)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeLarge
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 28; height: 28; radius: 14
+                                            color: root.isPinned("opencode", modelData.name)
+                                                ? Theme.surfaceSelected
+                                                : (openCodePinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                            border.color: root.isPinned("opencode", modelData.name)
+                                                ? Theme.outlineMedium : Theme.outlineVariant
+                                            border.width: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            MouseArea {
+                                                id: openCodePinArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.togglePin("opencode", modelData.name)
+                                            }
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: "push_pin"
+                                                size: 17
+                                                color: root.isPinned("opencode", modelData.name)
+                                                    ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned("opencode", modelData.name) ? 0 : 45
+                                            }
+                                        }
                                     }
-                                    Column {
-                                        width: parent.width - 40
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
-                                        StyledText {
-                                            text: root.pctStr(modelData.percentUsed || 0)
-                                            color: Theme.surfaceText
-                                            font.pixelSize: Theme.fontSizeMedium
-                                            font.weight: Font.Medium
+                                    Rectangle {
+                                        id: openCodeProgressTrack
+                                        width: parent.width
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.outlineVariant
+                                        Rectangle {
+                                            width: openCodeProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.primary
                                         }
-                                        StyledText {
-                                            visible: root.showResetTime && modelData.resetAt > 0
-                                            text: "Resets in " + root.cdown(modelData.resetAt)
-                                            color: Theme.surfaceVariantText
-                                            font.pixelSize: Theme.fontSizeSmall
-                                        }
+                                    }
+                                    StyledText {
+                                        visible: root.showResetTime && modelData.resetAt > 0
+                                        text: root.resetLabel(modelData.resetAt)
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
                                     }
                                 }
                             }
@@ -559,7 +876,7 @@ PluginComponent {
 
                     // --- DeepSeek card ---
                     StyledRect {
-                        visible: root.deepSeekEnabled
+                        visible: root.selectedProvider === "deepseek" && root.deepSeekEnabled
                         width: parent.width
                         height: dsCard.implicitHeight + Theme.spacingM * 2
                         radius: Theme.cornerRadius
@@ -573,44 +890,76 @@ PluginComponent {
 
                             StyledText {
                                 visible: root.dsBalance() != null
-                                text: "DeepSeek API"
+                                text: "DeepSeek API balance"
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.weight: Font.Bold
                             }
 
+                            StyledText {
+                                visible: root.dsBalance() != null
+                                    && (!root.usageData.deepseek || root.usageData.deepseek.isAvailable !== true)
+                                text: root.dsAvailabilityLabel()
+                                color: root.dsAvailabilityColor()
+                                font.pixelSize: Theme.fontSizeSmall
+                            }
+
                             // DeepSeek balance
                             Repeater {
-                                model: root.dsBalance() ? [root.dsBalance()] : []
+                                model: root.dsBalances()
                                 delegate: Row {
                                     width: parent.width
                                     spacing: Theme.spacingM
-                                    Rectangle {
-                                        width: 28; height: 28; radius: 14
-                                        color: Theme.surfaceContainerHighest
+                                    Image {
+                                        source: root.pluginDir + "deepseek-logo.svg"
+                                        sourceSize.width: 28
+                                        sourceSize.height: 28
+                                        width: 28; height: 28
+                                        fillMode: Image.PreserveAspectFit
                                         anchors.verticalCenter: parent.verticalCenter
-                                        Image {
-                                            anchors.centerIn: parent
-                                            source: root.pluginDir + "deepseek-logo.svg"
-                                            sourceSize.width: 20
-                                            sourceSize.height: 20
-                                            fillMode: Image.PreserveAspectFit
-                                        }
                                     }
                                     Column {
-                                        width: parent.width - 40
+                                        width: parent.width - 40 - 28 - Theme.spacingM
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 2
-                                        StyledText { text: "Balance: " + root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeMedium }
+                                        StyledText { text: "Available balance"; color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
+                                        StyledText { text: root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeLarge; font.weight: Font.Bold }
                                         StyledText {
                                             visible: parseFloat(modelData.granted) > 0
-                                            text: "Granted: " + modelData.currency + " " + parseFloat(modelData.granted).toFixed(2)
+                                            text: "Granted (unexpired): " + root.fmtMoney(modelData.granted, modelData.currency)
                                             color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
                                         }
                                         StyledText {
                                             visible: parseFloat(modelData.toppedUp) > 0
-                                            text: "Top-up: " + modelData.currency + " " + parseFloat(modelData.toppedUp).toFixed(2)
+                                            text: "Top-up (paid): " + root.fmtMoney(modelData.toppedUp, modelData.currency)
                                             color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                    }
+                                    Rectangle {
+                                        width: 28; height: 28; radius: 14
+                                        color: root.isPinned("deepseek", "balance")
+                                            ? Theme.surfaceSelected
+                                            : (deepSeekPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                        border.color: root.isPinned("deepseek", "balance")
+                                            ? Theme.outlineMedium : Theme.outlineVariant
+                                        border.width: 1
+                                        anchors.verticalCenter: parent.verticalCenter
+
+                                        MouseArea {
+                                            id: deepSeekPinArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.togglePin("deepseek", "balance")
+                                        }
+
+                                        DankIcon {
+                                            anchors.centerIn: parent
+                                            name: "push_pin"
+                                            size: 17
+                                            color: root.isPinned("deepseek", "balance")
+                                                ? Theme.primary : Theme.surfaceVariantText
+                                            rotation: root.isPinned("deepseek", "balance") ? 0 : 45
                                         }
                                     }
                                 }
@@ -618,12 +967,18 @@ PluginComponent {
 
                             // DeepSeek unavailable
                             StyledText {
-                                visible: !root.dsBalance() && root.deepSeekApiKey.length === 0
+                                visible: !root.dsBalance()
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
-                                text: "Set DeepSeek API key in plugin settings."
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var d = root.usageData.deepseek
+                                    if (d && d.error) return d.error
+                                    if (root.deepSeekApiKey.length === 0) return "Set DeepSeek API key in plugin settings."
+                                    return "No DeepSeek balance data."
+                                }
                             }
                         }
                     }
