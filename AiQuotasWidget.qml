@@ -18,6 +18,7 @@ PluginComponent {
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
     property string displayMode: pluginData.displayMode || "remaining"
     property bool showResetTime: pluginData.showResetTime !== false
+    property bool showResetCountdown: pluginData.showResetCountdown === true
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -300,6 +301,7 @@ PluginComponent {
         try {
             if (!t) return "Reset time unavailable"
             if (t <= Date.now() / 1000) return "Resets now"
+            if (showResetCountdown) return "Resets in " + cdown(t)
             var d = new Date(t * 1000)
             var h = d.getHours()
             var suffix = h >= 12 ? "PM" : "AM"

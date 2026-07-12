@@ -49,8 +49,15 @@ PluginSettings {
     ToggleSetting {
         settingKey: "showResetTime"
         label: "Show Reset Times"
-        description: "Show reset date and time in the popout"
+        description: "Show reset information in the popout"
         defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "showResetCountdown"
+        label: "Show Reset Countdown"
+        description: "Use a countdown instead of the reset date and time"
+        defaultValue: false
     }
 
     SelectionSetting {

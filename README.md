@@ -24,7 +24,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - Click to open a tabbed provider popout with clean per-limit detail cards
 - Pin any Codex, OpenCode, or DeepSeek limit directly from its popout card
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
-- Reset date/time shown for each usage limit
+- Reset date/time or countdown shown for each usage limit
 - DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
@@ -63,7 +63,8 @@ Then in DMS:
 | OpenCode | on | Show OpenCode usage quotas |
 | DeepSeek | on | Show DeepSeek account balance |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
-| Show Reset Times | on | Show reset date and time in the popout |
+| Show Reset Times | on | Show reset information in the popout |
+| Show Reset Countdown | off | Use a countdown instead of the reset date and time |
 | Display Mode | Remaining (%) | Show remaining or used percentage (pill + popout) |
 
 Use the pin button beside any limit in the popout to choose which limits appear in the bar pill. Multiple limits can be pinned at once.
