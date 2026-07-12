@@ -12,7 +12,7 @@ Codex and OpenCode Go usage limits plus DeepSeek API balance in your [DankMateri
 |----------|------|------------|
 | **Codex** | ChatGPT plan usage limits | 5-hour, weekly, and code review usage % with reset countdowns |
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
-| **DeepSeek API** | Account balance | Total, granted, and topped-up balance |
+| **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
 
@@ -21,14 +21,14 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - Merged bar pill showing Codex and OpenCode usage rings plus DeepSeek API balance
 - Codex 5-hour usage ring in the bar pill, with 5-hour, weekly, and code review limits in the popout
 - Separators between provider sections in the pill
-- Click to open a popout with per-window OpenCode Go detail in styled cards
-- Choose which window to pin in the bar pill (Rolling / Weekly / Monthly)
+- Click to open a tabbed provider popout with clean per-limit detail cards
+- Pin any Codex, OpenCode, or DeepSeek limit directly from its popout card
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
-- Live reset countdowns for each OpenCode Go window (days/hours/minutes)
-- DeepSeek API balance card with total/granted/topped-up breakdown and logo
+- Reset date/time shown for each usage limit
+- DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
-- Toggle which OpenCode windows appear in the popout
+- OpenCode Rolling (5h), Weekly, and Monthly windows are always available in the popout
 - All credentials configured from DMS settings - no config files needed
 
 ## Requirements
@@ -61,14 +61,12 @@ Then in DMS:
 |---------|---------|-------------|
 | Codex | on | Show Codex usage limits from the local Codex login |
 | OpenCode | on | Show OpenCode usage quotas |
-| Bar Pill Window | Rolling | Which OpenCode window to show in the pill |
-| Show Rolling (5h) | on | Show rolling window in the popout |
-| Show Weekly | on | Show weekly window in the popout |
-| Show Monthly | on | Show monthly window in the popout |
 | DeepSeek | on | Show DeepSeek account balance |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
-| Show Reset Countdown | on | Live countdown in the popout |
+| Show Reset Times | on | Show reset date and time in the popout |
 | Display Mode | Remaining (%) | Show remaining or used percentage (pill + popout) |
+
+Use the pin button beside any limit in the popout to choose which limits appear in the bar pill. Multiple limits can be pinned at once.
 
 ### Credentials
 
@@ -91,7 +89,7 @@ Codex uses the local Codex CLI login automatically. Run `codex login` once; no t
 
 ## How it works
 
-The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, and queries the DeepSeek balance API. No external npm packages required.
+The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, and queries the DeepSeek balance API. DeepSeek’s balance endpoint provides account funds and availability, not usage history; detailed usage remains available through the DeepSeek Platform Usage export. No external npm packages required.
 
 ```
 Codex auth.json  ---> chatgpt.com/backend-api/wham/usage --\
