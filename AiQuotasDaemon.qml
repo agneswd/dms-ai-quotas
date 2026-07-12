@@ -9,6 +9,7 @@ PluginComponent {
     pluginId: "aiQuotas"
 
     property int refreshInterval: pluginData.refreshInterval || 60
+    property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
@@ -35,6 +36,7 @@ PluginComponent {
     Process {
         id: fetchProcess
         command: ["sh", "-c",
+            "AIQ_CODEX_ENABLED='" + (root.codexEnabled ? "1" : "0") + "' " +
             "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
             "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
             "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +

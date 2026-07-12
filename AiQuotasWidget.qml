@@ -10,6 +10,7 @@ PluginComponent {
     pluginId: "aiQuotas"
 
     property int refreshInterval: pluginData.refreshInterval || 60
+    property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property bool showRolling: pluginData.showRolling !== false
@@ -43,6 +44,7 @@ PluginComponent {
     Process {
         id: fetchProcess
         command: ["sh", "-c",
+            "AIQ_CODEX_ENABLED='" + (root.codexEnabled ? "1" : "0") + "' " +
             "AIQ_OPENCODE_ENABLED='" + (root.openCodeEnabled ? "1" : "0") + "' " +
             "AIQ_DEEPSEEK_ENABLED='" + (root.deepSeekEnabled ? "1" : "0") + "' " +
             "DEEPSEEK_API_KEY='" + root.deepSeekApiKey + "' " +
@@ -74,6 +76,46 @@ PluginComponent {
         } catch (e) {}
         // Fetch immediately on startup.
         try { fetchProcess.running = true } catch (e) {}
+    }
+
+    function codexEntries() {
+        try {
+            if (!usageData || !usageData.codex) return []
+            if (usageData.codex.status !== "ok") return []
+            return usageData.codex.entries || []
+        } catch (e) { return [] }
+    }
+
+    function codexEntry(name) {
+        var entries = codexEntries()
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].name === name) return entries[i]
+        }
+        return null
+    }
+
+    function codexPrimary() {
+        return codexEntry("5h")
+    }
+
+    function codexPct() {
+        try {
+            var e = codexPrimary()
+            if (!e || e.percentUsed === undefined || e.percentUsed === null) return -1
+            return e.percentUsed
+        } catch (e) { return -1 }
+    }
+
+    function hasCodex() {
+        return codexEnabled && codexPct() >= 0
+    }
+
+    function hasOpenCode() {
+        return openCodeEnabled && pinnedPct() >= 0
+    }
+
+    function hasDeepSeek() {
+        return deepSeekEnabled && dsBalance() != null
     }
 
     function ocEntries() {
@@ -185,9 +227,39 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
+                // Codex 5-hour limit
+                Repeater {
+                    model: root.hasCodex() ? [1] : []
+                    delegate: Row {
+                        spacing: 4
+                        UsageRing {
+                            percentage: root.codexPct()
+                            ringColor: root.clr(root.codexPct())
+                            diameter: Math.max(16, Math.min(pill.height - 6, 24))
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: "C " + Math.round(root.pctVal(root.codexPct())) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator before OpenCode or DeepSeek
+                Rectangle {
+                    visible: root.hasCodex() && (root.hasOpenCode() || root.hasDeepSeek())
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
                 // OpenCode pinned ring only
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.pinnedPct() >= 0 ? [1] : []
+                    model: root.hasOpenCode() ? [1] : []
                     delegate: Row {
                         spacing: 4
                         UsageRing {
@@ -207,7 +279,7 @@ PluginComponent {
 
                 // Separator between OpenCode and DeepSeek
                 Rectangle {
-                    visible: root.usageData && root.openCodeEnabled && root.deepSeekEnabled && root.dsBalance()
+                    visible: root.hasOpenCode() && root.hasDeepSeek()
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -217,7 +289,7 @@ PluginComponent {
 
                 // DeepSeek balance
                 Repeater {
-                    model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
+                    model: root.hasDeepSeek() ? [1] : []
                     delegate: Row {
                         spacing: 4
                         Image {
@@ -261,7 +333,26 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.openCodeEnabled && root.pinnedPct() >= 0 ? [1] : []
+                    model: root.hasCodex() ? [1] : []
+                    delegate: Column {
+                        spacing: 1
+                        UsageRing {
+                            percentage: root.codexPct()
+                            ringColor: root.clr(root.codexPct())
+                            diameter: Math.max(16, Math.min(pillV.width - 4, 24))
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: "C " + Math.round(root.pctVal(root.codexPct())) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.hasOpenCode() ? [1] : []
                     delegate: Column {
                         spacing: 1
                         UsageRing {
@@ -280,7 +371,7 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.usageData && root.deepSeekEnabled && root.dsBalance() ? [1] : []
+                    model: root.hasDeepSeek() ? [1] : []
                     delegate: Column {
                         spacing: 1
                         Image {
@@ -309,7 +400,7 @@ PluginComponent {
     // --- Popout ---
 
     popoutWidth: 360
-    popoutHeight: 450
+    popoutHeight: 620
     popoutContent: Component {
         PopoutComponent {
             id: popout
@@ -321,6 +412,77 @@ PluginComponent {
                     width: parent.width - Theme.spacingM * 2
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: Theme.spacingM
+
+                    // --- Codex card ---
+                    StyledRect {
+                        visible: root.codexEnabled
+                        width: parent.width
+                        height: codexCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: codexCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.codexEntries().length > 0
+                                text: root.usageData && root.usageData.codex && root.usageData.codex.plan
+                                    ? "Codex (" + root.usageData.codex.plan + ")" : "Codex"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            Repeater {
+                                model: root.codexEntries()
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    UsageRing {
+                                        percentage: modelData.percentUsed || 0
+                                        ringColor: root.clr(modelData.percentUsed || 0)
+                                        diameter: 28
+                                        thickness: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Column {
+                                        width: parent.width - 40
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 2
+                                        StyledText {
+                                            text: modelData.name + ": " + root.pctStr(modelData.percentUsed || 0)
+                                            color: Theme.surfaceText
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            font.weight: Font.Medium
+                                        }
+                                        StyledText {
+                                            visible: root.showResetTime && modelData.resetAt > 0
+                                            text: "Resets in " + root.cdown(modelData.resetAt)
+                                            color: Theme.surfaceVariantText
+                                            font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                    }
+                                }
+                            }
+
+                            StyledText {
+                                visible: root.codexEntries().length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var c = root.usageData.codex
+                                    if (c && c.error) return c.error
+                                    return "No Codex usage data."
+                                }
+                            }
+                        }
+                    }
 
                     // --- OpenCode card ---
                     StyledRect {

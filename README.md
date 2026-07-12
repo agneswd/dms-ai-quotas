@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-OpenCode Go usage quotas and DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Codex and OpenCode Go usage limits plus DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
@@ -10,6 +10,7 @@ OpenCode Go usage quotas and DeepSeek API balance in your [DankMaterialShell](ht
 
 | Provider | Type | Data shown |
 |----------|------|------------|
+| **Codex** | ChatGPT plan usage limits | 5-hour, weekly, and code review usage % with reset countdowns |
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
 | **DeepSeek API** | Account balance | Total, granted, and topped-up balance |
 
@@ -17,8 +18,9 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 
 ## Features
 
-- Merged bar pill showing pinned OpenCode Go usage ring + DeepSeek API balance indicator
-- Separator between OpenCode and DeepSeek sections in the pill
+- Merged bar pill showing Codex and OpenCode usage rings plus DeepSeek API balance
+- Codex 5-hour usage ring in the bar pill, with 5-hour, weekly, and code review limits in the popout
+- Separators between provider sections in the pill
 - Click to open a popout with per-window OpenCode Go detail in styled cards
 - Choose which window to pin in the bar pill (Rolling / Weekly / Monthly)
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
@@ -34,6 +36,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - DankMaterialShell >= 1.5.0
 - `curl` and `jq`
 - For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
+- For Codex: the Codex CLI installed and authenticated with `codex login`
 - For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
 
 ## Install
@@ -56,6 +59,7 @@ Then in DMS:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| Codex | on | Show Codex usage limits from the local Codex login |
 | OpenCode | on | Show OpenCode usage quotas |
 | Bar Pill Window | Rolling | Which OpenCode window to show in the pill |
 | Show Rolling (5h) | on | Show rolling window in the popout |
@@ -67,6 +71,8 @@ Then in DMS:
 | Display Mode | Remaining (%) | Show remaining or used percentage (pill + popout) |
 
 ### Credentials
+
+Codex uses the local Codex CLI login automatically. Run `codex login` once; no token needs to be copied into DMS settings.
 
 | Setting | Description |
 |---------|-------------|
@@ -85,11 +91,12 @@ Then in DMS:
 
 ## How it works
 
-The plugin scrapes the OpenCode workspace dashboard directly via `curl` and queries the DeepSeek balance API. No external npm packages required.
+The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, and queries the DeepSeek balance API. No external npm packages required.
 
 ```
+Codex auth.json  ---> chatgpt.com/backend-api/wham/usage --\
+                                                          |---> fetch-usage.sh ---> cache ---> Widget
 curl opencode.ai/workspace/{id}/go  --\
-                                       |---> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  --/
 ```
 

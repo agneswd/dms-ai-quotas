@@ -16,6 +16,13 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "codexEnabled"
+        label: "Codex"
+        description: "Show Codex usage limits from your local Codex login"
+        defaultValue: true
+    }
+
+    ToggleSetting {
         settingKey: "openCodeEnabled"
         label: "OpenCode Go"
         description: "Show OpenCode Go usage quotas"
