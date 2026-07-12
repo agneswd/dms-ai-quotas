@@ -182,8 +182,8 @@ PluginComponent {
 
     function providerTabs() {
         var out = []
-        if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "codex-logo.svg" })
-        if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "opencode-logo.svg" })
+        if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
+        if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "deepseek-logo.svg" })
         return out
     }
@@ -378,7 +378,7 @@ PluginComponent {
                     delegate: Row {
                         spacing: 4
                         Image {
-                            source: root.pluginDir + "codex-logo.svg"
+                            source: root.pluginDir + "assets/codex-logo.svg"
                             sourceSize.width: 16
                             sourceSize.height: 16
                             width: 16; height: 16
@@ -410,7 +410,7 @@ PluginComponent {
                     delegate: Row {
                         spacing: 4
                         Image {
-                            source: root.pluginDir + "opencode-logo.svg"
+                            source: root.pluginDir + "assets/opencode-logo.svg"
                             sourceSize.width: 16
                             sourceSize.height: 16
                             width: 16; height: 16
@@ -486,7 +486,7 @@ PluginComponent {
                     delegate: Column {
                         spacing: 1
                         Image {
-                            source: root.pluginDir + "codex-logo.svg"
+                            source: root.pluginDir + "assets/codex-logo.svg"
                             sourceSize.width: 16
                             sourceSize.height: 16
                             width: 16; height: 16
@@ -507,7 +507,7 @@ PluginComponent {
                     delegate: Column {
                         spacing: 1
                         Image {
-                            source: root.pluginDir + "opencode-logo.svg"
+                            source: root.pluginDir + "assets/opencode-logo.svg"
                             sourceSize.width: 16
                             sourceSize.height: 16
                             width: 16; height: 16
@@ -654,7 +654,7 @@ PluginComponent {
                                         width: parent.width
                                         spacing: Theme.spacingM
                                         Image {
-                                            source: root.pluginDir + "codex-logo.svg"
+                                            source: root.pluginDir + "assets/codex-logo.svg"
                                             sourceSize.width: 28
                                             sourceSize.height: 28
                                             width: 28; height: 28
@@ -783,7 +783,7 @@ PluginComponent {
                                         width: parent.width
                                         spacing: Theme.spacingM
                                         Image {
-                                            source: root.pluginDir + "opencode-logo.svg"
+                                            source: root.pluginDir + "assets/opencode-logo.svg"
                                             sourceSize.width: 28
                                             sourceSize.height: 28
                                             width: 28; height: 28
