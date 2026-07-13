@@ -36,6 +36,13 @@ PluginSettings {
         defaultValue: true
     }
 
+    ToggleSetting {
+        settingKey: "antigravityEnabled"
+        label: "Antigravity"
+        description: "Show Antigravity agent and model quotas"
+        defaultValue: true
+    }
+
     SliderSetting {
         settingKey: "refreshInterval"
         label: "Refresh Interval"

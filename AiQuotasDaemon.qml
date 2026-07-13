@@ -12,6 +12,7 @@ PluginComponent {
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
@@ -41,6 +42,7 @@ PluginComponent {
             "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
             "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
+            "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
             "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
             "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
             "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
