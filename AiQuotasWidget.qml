@@ -708,32 +708,27 @@ PluginComponent {
                                     NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
                                 }
 
-                                Image {
-                                    id: tabIcon
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.horizontalCenter: root.selectedProvider === modelData.id ? undefined : parent.horizontalCenter
-                                    anchors.left: root.selectedProvider === modelData.id ? parent.left : undefined
-                                    anchors.leftMargin: root.selectedProvider === modelData.id ? Theme.spacingS : 0
-                                    source: root.pluginDir + modelData.icon
-                                    sourceSize.width: 17
-                                    sourceSize.height: 17
-                                    width: 17; height: 17
-                                    fillMode: Image.PreserveAspectFit
-                                }
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: Theme.spacingXS
 
-                                StyledText {
-                                    anchors.left: tabIcon.right
-                                    anchors.leftMargin: Theme.spacingXS
-                                    anchors.right: parent.right
-                                    anchors.rightMargin: Theme.spacingXS
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: root.selectedProvider === modelData.id
-                                    text: modelData.label
-                                    color: root.selectedProvider === modelData.id
-                                        ? Theme.surfaceText : Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
+                                    Image {
+                                        source: root.pluginDir + modelData.icon
+                                        sourceSize.width: 17
+                                        sourceSize.height: 17
+                                        width: 17; height: 17
+                                        fillMode: Image.PreserveAspectFit
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+
+                                    StyledText {
+                                        visible: root.selectedProvider === modelData.id
+                                        text: modelData.label
+                                        color: root.selectedProvider === modelData.id
+                                            ? Theme.surfaceText : Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
                                 }
 
                                 MouseArea {
