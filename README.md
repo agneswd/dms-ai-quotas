@@ -3,7 +3,7 @@
 Codex, OpenCode Go, and Antigravity model quotas plus DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
-  <img src="assets/screenshot-2026-07-12.png" alt="AI Quotas popout" width="500"/>
+  <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
 </p>
 
 ## Supported Providers
