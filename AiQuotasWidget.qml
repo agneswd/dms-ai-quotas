@@ -685,7 +685,15 @@ PluginComponent {
                         Repeater {
                             model: root.providerTabs()
                             delegate: Rectangle {
-                                width: (providerTabsRow.width - Theme.spacingXS * (root.providerTabs().length - 1)) / root.providerTabs().length
+                                width: {
+                                    var tabs = root.providerTabs()
+                                    var N = tabs.length
+                                    var W = providerTabsRow.width - Theme.spacingXS * (N - 1)
+                                    var R = 1.8 // active-to-inactive width ratio
+                                    var sumWeights = R + (N - 1)
+                                    var U = W / sumWeights
+                                    return root.selectedProvider === modelData.id ? R * U : U
+                                }
                                 height: providerTabsRow.height
                                 radius: Theme.cornerRadius
                                 color: root.selectedProvider === modelData.id
@@ -694,12 +702,18 @@ PluginComponent {
                                 border.color: root.selectedProvider === modelData.id
                                     ? Theme.outlineMedium : Theme.outlineVariant
                                 border.width: 1
+                                clip: true
+
+                                Behavior on width {
+                                    NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
+                                }
 
                                 Image {
                                     id: tabIcon
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: Theme.spacingS
                                     anchors.verticalCenter: parent.verticalCenter
+                                    anchors.horizontalCenter: root.selectedProvider === modelData.id ? undefined : parent.horizontalCenter
+                                    anchors.left: root.selectedProvider === modelData.id ? parent.left : undefined
+                                    anchors.leftMargin: root.selectedProvider === modelData.id ? Theme.spacingS : 0
                                     source: root.pluginDir + modelData.icon
                                     sourceSize.width: 17
                                     sourceSize.height: 17
@@ -713,6 +727,7 @@ PluginComponent {
                                     anchors.right: parent.right
                                     anchors.rightMargin: Theme.spacingXS
                                     anchors.verticalCenter: parent.verticalCenter
+                                    visible: root.selectedProvider === modelData.id
                                     text: modelData.label
                                     color: root.selectedProvider === modelData.id
                                         ? Theme.surfaceText : Theme.surfaceVariantText
