@@ -450,7 +450,71 @@ PluginComponent {
 
                 // Separator after Codex
                 Rectangle {
-                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedAntigravityEntries().length > 0 || root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
+                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // OpenCode pinned entries
+                Repeater {
+                    model: root.pinnedOpenCodeEntries()
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/opencode-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after OpenCode
+                Rectangle {
+                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // DeepSeek balance
+                Repeater {
+                    model: root.hasDeepSeek() ? [1] : []
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/deepseek-logo.svg"
+                            sourceSize.width: 14
+                            sourceSize.height: 14
+                            width: 14; height: 14
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: root.fmtBal(root.dsBalance())
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after DeepSeek
+                Rectangle {
+                    visible: root.hasDeepSeek() && root.pinnedAntigravityEntries().length > 0
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -480,69 +544,6 @@ PluginComponent {
                     }
                 }
 
-                // Separator after Antigravity
-                Rectangle {
-                    visible: root.pinnedAntigravityEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
-                    width: 1
-                    height: pill.height - 8
-                    color: Theme.outlineVariant
-                    opacity: 0.4
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                // OpenCode pinned ring only
-                Repeater {
-                    model: root.pinnedOpenCodeEntries()
-                    delegate: Row {
-                        spacing: 4
-                        Image {
-                            source: root.pluginDir + "assets/opencode-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
-                            fillMode: Image.PreserveAspectFit
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
-                            color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-
-                // Separator between OpenCode and DeepSeek
-                Rectangle {
-                    visible: root.pinnedOpenCodeEntries().length > 0 && root.hasDeepSeek()
-                    width: 1
-                    height: pill.height - 8
-                    color: Theme.outlineVariant
-                    opacity: 0.4
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                // DeepSeek balance
-                Repeater {
-                    model: root.hasDeepSeek() ? [1] : []
-                    delegate: Row {
-                        spacing: 4
-                        Image {
-                            source: root.pluginDir + "assets/deepseek-logo.svg"
-                            sourceSize.width: 14
-                            sourceSize.height: 14
-                            width: 14; height: 14
-                            fillMode: Image.PreserveAspectFit
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        StyledText {
-                            text: root.fmtBal(root.dsBalance())
-                            color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
             }
         }
     }
@@ -590,28 +591,6 @@ PluginComponent {
                 }
 
                 Repeater {
-                    model: root.pinnedAntigravityEntries()
-                    delegate: Column {
-                        spacing: 1
-                        Image {
-                            source: root.pluginDir + "assets/antigravity-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
-                            fillMode: Image.PreserveAspectFit
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                        StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
-                            color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                    }
-                }
-
-
-                Repeater {
                     model: root.pinnedOpenCodeEntries()
                     delegate: Column {
                         spacing: 1
@@ -655,6 +634,28 @@ PluginComponent {
                         }
                     }
                 }
+
+                Repeater {
+                    model: root.pinnedAntigravityEntries()
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/antigravity-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
             }
         }
     }
