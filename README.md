@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Codex and OpenCode Go usage limits plus DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Codex, OpenCode Go, and Antigravity model quotas plus DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot-2026-07-12.png" alt="AI Quotas popout" width="500"/>
@@ -12,6 +12,7 @@ Codex and OpenCode Go usage limits plus DeepSeek API balance in your [DankMateri
 |----------|------|------------|
 | **Codex** | ChatGPT plan usage limits | 5-hour, weekly, and code review usage % with reset countdowns |
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
+| **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
 | **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
@@ -61,6 +62,7 @@ Then in DMS:
 |---------|---------|-------------|
 | Codex | on | Show Codex usage limits from the local Codex login |
 | OpenCode | on | Show OpenCode usage quotas |
+| Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
 | Show Reset Times | on | Show reset information in the popout |
@@ -90,13 +92,13 @@ Codex uses the local Codex CLI login automatically. Run `codex login` once; no t
 
 ## How it works
 
-The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, and queries the DeepSeek balance API. DeepSeek’s balance endpoint provides account funds and availability, not usage history; detailed usage remains available through the DeepSeek Platform Usage export. No external npm packages required.
+The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, and queries the DeepSeek balance API. DeepSeek’s balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
-Codex auth.json  ---> chatgpt.com/backend-api/wham/usage --\
-                                                          |---> fetch-usage.sh ---> cache ---> Widget
-curl opencode.ai/workspace/{id}/go  --\
-curl api.deepseek.com/user/balance  --/
+Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
+curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
+Local quota files                  ---> ~/.antigravity_cockpit/...          ----> fetch-usage.sh ---> cache ---> Widget
+curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --/
 ```
 
 ## License

@@ -1,8 +1,8 @@
 {
   "id": "aiQuotas",
   "name": "AI Quotas",
-  "description": "Codex and OpenCode usage limits plus DeepSeek balance in your bar.",
-  "version": "1.2.0",
+  "description": "Codex, OpenCode, and Antigravity usage limits plus DeepSeek balance in your bar.",
+  "version": "1.3.0",
   "author": "agneswd",
   "type": "composite",
   "capabilities": ["dankbar-widget", "daemon"],
