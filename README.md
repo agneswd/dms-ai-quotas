@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Codex, OpenCode Go, and Antigravity model quotas plus DeepSeek API balance in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Codex, OpenCode Go, Antigravity model quotas, DeepSeek API balance, and SuperGrok plan quotas in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
@@ -14,19 +14,21 @@ Codex, OpenCode Go, and Antigravity model quotas plus DeepSeek API balance in yo
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
 | **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
 | **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
+| **Grok** | SuperGrok plan usage | Weekly (or current period) usage % with reset time from local `grok login` |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
 
 ## Features
 
 - Merged bar pill showing provider logos, pinned percentages, and DeepSeek API balance
-- Codex and OpenCode pinned percentages in the bar pill, with all supported limits in the popout
+- Codex, OpenCode, and Grok pinned percentages in the bar pill, with all supported limits in the popout
 - Separators between provider sections in the pill
 - Click to open a tabbed provider popout with clean per-limit detail cards
-- Pin any Codex, OpenCode, or DeepSeek limit directly from its popout card
+- Pin any Codex, OpenCode, DeepSeek, or Grok item directly from its popout card
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
 - Reset date/time or countdown shown for each usage limit
 - DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
+- SuperGrok plan usage card from local `grok login` (no API key)
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
 - OpenCode Rolling (5h), Weekly, and Monthly windows are always available in the popout
@@ -37,6 +39,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - DankMaterialShell >= 1.5.0
 - `curl` and `jq`
 - For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
+- For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
 - For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
 
@@ -64,6 +67,7 @@ Then in DMS:
 | OpenCode | on | Show OpenCode usage quotas |
 | Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
+| Grok | on | Show SuperGrok plan usage from the local Grok login |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
 | Show Reset Times | on | Show reset information in the popout |
 | Show Reset Countdown | off | Use a countdown instead of the reset date and time |
@@ -73,7 +77,7 @@ Use the pin button beside any limit in the popout to choose which limits appear 
 
 ### Credentials
 
-Codex uses the local Codex CLI login automatically. Run `codex login` once; no token needs to be copied into DMS settings.
+Codex and Grok use their local CLI logins automatically. Run `codex login` and `grok login` once; no tokens need to be copied into DMS settings.
 
 | Setting | Description |
 |---------|-------------|
@@ -92,13 +96,14 @@ Codex uses the local Codex CLI login automatically. Run `codex login` once; no t
 
 ## How it works
 
-The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, and queries the DeepSeek balance API. DeepSeek’s balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`), queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query SuperGrok plan billing. DeepSeek’s balance endpoint provides account funds and availability, not usage history. Grok reports SuperGrok subscription usage (not API-key billing). No external npm packages required.
 
 ```
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
 curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
 Local quota files                  ---> ~/.antigravity_cockpit/...          ----> fetch-usage.sh ---> cache ---> Widget
-curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --/
+curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
+Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
 ```
 
 ## License

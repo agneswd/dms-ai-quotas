@@ -14,6 +14,7 @@ PluginComponent {
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property bool antigravityEnabled: pluginData.antigravityEnabled !== false
+    property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
@@ -49,6 +50,8 @@ PluginComponent {
             "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
             "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
+            "AIQ_GROK_ENABLED=" + (root.grokEnabled ? "1" : "0"),
+            "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
             "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
             "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
             "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
@@ -122,7 +125,7 @@ PluginComponent {
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], antigravity: ["Gemini Models - Five Hour Limit"] }
+        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Weekly"], antigravity: ["Gemini Models - Five Hour Limit"] }
     }
 
     function savedSetting(key, fallback) {
@@ -143,11 +146,14 @@ PluginComponent {
         }
         var defaults = defaultPinState()
         var next = {}
-        var providers = ["codex", "opencode", "deepseek", "antigravity"]
+        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
         for (var i = 0; i < providers.length; i++) {
             var provider = providers[i]
             next[provider] = raw && Array.isArray(raw[provider]) ? raw[provider] : defaults[provider]
         }
+        // Migrate old Grok API-status pin to SuperGrok weekly quota pin.
+        if (next.grok && next.grok.length === 1 && next.grok[0] === "status")
+            next.grok = defaults.grok.slice()
         pinState = next
     }
 
@@ -163,7 +169,7 @@ PluginComponent {
 
     function togglePin(provider, name) {
         var next = {}
-        var providers = ["codex", "opencode", "deepseek", "antigravity"]
+        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
         for (var i = 0; i < providers.length; i++)
             next[providers[i]] = (pinState[providers[i]] || []).slice()
         var pins = next[provider] || []
@@ -186,6 +192,7 @@ PluginComponent {
 
     function pinnedCodexEntries() { return pinnedEntries("codex", codexEntries()) }
     function pinnedOpenCodeEntries() { return pinnedEntries("opencode", ocEntries()) }
+    function pinnedGrokEntries() { return pinnedEntries("grok", grokEntries()) }
     function pinnedAntigravityEntries() { return pinnedEntries("antigravity", antigravityEntries()) }
     function deepSeekPinned() { return isPinned("deepseek", "balance") }
 
@@ -193,6 +200,7 @@ PluginComponent {
         if (provider === "codex") return codexEnabled
         if (provider === "opencode") return openCodeEnabled
         if (provider === "deepseek") return deepSeekEnabled
+        if (provider === "grok") return grokEnabled
         if (provider === "antigravity") return antigravityEnabled
         return false
     }
@@ -202,13 +210,14 @@ PluginComponent {
         if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
         if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "assets/deepseek-logo.svg" })
+        if (grokEnabled) out.push({ id: "grok", label: "Grok", icon: "assets/grok-logo.svg" })
         if (antigravityEnabled) out.push({ id: "antigravity", label: "Antigravity", icon: "assets/antigravity-logo.svg" })
         return out
     }
 
     function ensureSelectedProvider() {
         if (providerEnabled(selectedProvider)) return
-        var providers = ["codex", "opencode", "deepseek", "antigravity"]
+        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
         for (var i = 0; i < providers.length; i++) {
             if (providerEnabled(providers[i])) {
                 selectedProvider = providers[i]
@@ -262,6 +271,29 @@ PluginComponent {
 
     function hasDeepSeek() {
         return deepSeekEnabled && deepSeekPinned() && dsBalance() != null
+    }
+
+    function hasGrok() {
+        return grokEnabled && pinnedGrokEntries().length > 0
+    }
+
+    function grokEntries() {
+        try {
+            if (!usageData || !usageData.grok) return []
+            if (usageData.grok.status !== "ok") return []
+            return usageData.grok.entries || []
+        } catch (e) { return [] }
+    }
+
+    function grokLabel(entry) {
+        try {
+            if (entry.name === "Weekly") return "Weekly plan usage"
+            if (entry.name === "Monthly") return "Monthly plan usage"
+            if (entry.name === "Daily") return "Daily plan usage"
+            if (entry.name === "Hourly") return "Hourly plan usage"
+            if (entry.name === "Usage") return "Plan usage"
+            return entry.name + " plan usage"
+        } catch (e) { return "Grok plan usage" }
     }
 
     function ocEntries() {
@@ -450,7 +482,7 @@ PluginComponent {
 
                 // Separator after Codex
                 Rectangle {
-                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -482,7 +514,7 @@ PluginComponent {
 
                 // Separator after OpenCode
                 Rectangle {
-                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -514,7 +546,39 @@ PluginComponent {
 
                 // Separator after DeepSeek
                 Rectangle {
-                    visible: root.hasDeepSeek() && root.pinnedAntigravityEntries().length > 0
+                    visible: root.hasDeepSeek() && (root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Grok pinned entries
+                Repeater {
+                    model: root.pinnedGrokEntries()
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/grok-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after Grok
+                Rectangle {
+                    visible: root.pinnedGrokEntries().length > 0 && root.pinnedAntigravityEntries().length > 0
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -628,6 +692,27 @@ PluginComponent {
                                 var b = root.dsBalance()
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.pinnedGrokEntries()
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/grok-logo.svg"
+                            sourceSize.width: 14
+                            sourceSize.height: 14
+                            width: 14; height: 14
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -1245,6 +1330,135 @@ PluginComponent {
                                     if (d && d.error) return d.error
                                     if (root.deepSeekApiKey.length === 0) return "Set DeepSeek API key in plugin settings."
                                     return "No DeepSeek balance data."
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Grok card ---
+                    StyledRect {
+                        visible: root.selectedProvider === "grok" && root.grokEnabled
+                        width: parent.width
+                        height: grokCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: grokCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.grokEntries().length > 0
+                                text: root.usageData && root.usageData.grok && root.usageData.grok.plan
+                                    ? "Grok (" + root.usageData.grok.plan + ")" : "Grok"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            Repeater {
+                                model: root.grokEntries()
+                                delegate: Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingM
+                                        Image {
+                                            source: root.pluginDir + "assets/grok-logo.svg"
+                                            sourceSize.width: 28
+                                            sourceSize.height: 28
+                                            width: 28; height: 28
+                                            fillMode: Image.PreserveAspectFit
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Column {
+                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            StyledText {
+                                                text: root.grokLabel(modelData)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                            StyledText {
+                                                text: root.pctStr(modelData.percentUsed || 0)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeLarge
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 28; height: 28; radius: 14
+                                            color: root.isPinned("grok", modelData.name)
+                                                ? Theme.surfaceSelected
+                                                : (grokPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                            border.color: root.isPinned("grok", modelData.name)
+                                                ? Theme.outlineMedium : Theme.outlineVariant
+                                            border.width: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            MouseArea {
+                                                id: grokPinArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.togglePin("grok", modelData.name)
+                                            }
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: "push_pin"
+                                                size: 17
+                                                color: root.isPinned("grok", modelData.name)
+                                                    ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned("grok", modelData.name) ? 0 : 45
+                                            }
+                                        }
+                                    }
+                                    Rectangle {
+                                        id: grokProgressTrack
+                                        width: parent.width
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.outlineVariant
+                                        Rectangle {
+                                            width: grokProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.primary
+                                        }
+                                    }
+                                    StyledText {
+                                        visible: root.showResetTime && modelData.resetAt > 0
+                                        text: root.resetLabel(modelData.resetAt)
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                    }
+                                }
+                            }
+
+                            StyledText {
+                                visible: root.grokEntries().length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: {
+                                    var g = root.usageData && root.usageData.grok
+                                    return g && (g.reason === "not_authenticated" || g.reason === "auth_expired")
+                                        ? Theme.warning : Theme.surfaceVariantText
+                                }
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var g = root.usageData.grok
+                                    if (g && g.reason === "not_authenticated")
+                                        return "Grok is not connected.\nRun grok login in a terminal, then wait for the next refresh."
+                                    if (g && g.reason === "auth_expired")
+                                        return "Grok login expired.\nRun grok login again, then wait for the next refresh."
+                                    if (g && g.error) return g.error
+                                    return "No Grok usage data."
                                 }
                             }
                         }

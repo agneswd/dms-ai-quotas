@@ -1,16 +1,19 @@
 #!/bin/sh
-# Fetch Codex and OpenCode Go usage plus DeepSeek balance, merge, cache, and print.
+# Fetch Codex and OpenCode Go usage plus DeepSeek balance and SuperGrok plan quotas, merge, cache, and print.
 #
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
+# Grok: SuperGrok plan usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
 #   AIQ_CODEX_ENABLED         "1" to fetch Codex (default: "1")
 #   CACHE_FILE                cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
 #   CODEX_HOME                Codex home directory (default $HOME/.codex)
+#   GROK_HOME                 Grok home directory (default $HOME/.grok)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
+#   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
 #   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
 #   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
@@ -22,6 +25,7 @@ oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
 ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
 codex_enabled="${AIQ_CODEX_ENABLED:-1}"
 agy_enabled="${AIQ_ANTIGRAVITY_ENABLED:-1}"
+grok_enabled="${AIQ_GROK_ENABLED:-1}"
 cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/usage.json}"
 ttl="${AIQ_CACHE_TTL:-55}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null
@@ -35,6 +39,9 @@ if [ -s "$cache" ]; then
         cache_usable=0
     fi
     if [ "$agy_enabled" = "1" ] && ! jq -e 'has("antigravity")' "$cache" >/dev/null 2>&1; then
+        cache_usable=0
+    fi
+    if [ "$grok_enabled" = "1" ] && ! jq -e 'has("grok")' "$cache" >/dev/null 2>&1; then
         cache_usable=0
     fi
     if [ "$prev" -gt 0 ] && [ $((now - prev)) -lt "$ttl" ] && [ "$cache_usable" = "1" ]; then
@@ -247,6 +254,93 @@ if [ "$ds_enabled" = "1" ]; then
 fi
 
 # ============================================================
+# Grok SuperGrok plan usage (OAuth via grok login, not API key)
+# ============================================================
+grok_data='{"status":"unavailable"}'
+if [ "$grok_enabled" = "1" ]; then
+    grok_home="${GROK_HOME:-$HOME/.grok}"
+    grok_auth="$grok_home/auth.json"
+    access_token=$(jq -r 'to_entries[0].value.key // empty' "$grok_auth" 2>/dev/null)
+    email=$(jq -r 'to_entries[0].value.email // empty' "$grok_auth" 2>/dev/null)
+
+    if [ -n "$access_token" ]; then
+        grok_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $access_token" \
+            -H "Accept: application/json" \
+            -H "User-Agent: dms-ai-quotas" \
+            -H "x-grok-client-version: 0.2.99" \
+            -H "x-grok-client-mode: cli" \
+            "https://cli-chat-proxy.grok.com/v1/billing?format=credits" 2>/dev/null)
+        grok_http_code=$(printf '%s\n' "$grok_response" | tail -n 1)
+        grok_body=$(printf '%s\n' "$grok_response" | sed '$d')
+        case "$grok_http_code" in
+            2??)
+                grok_data=$(printf '%s' "$grok_body" | jq -c --arg email "$email" '
+                    def number:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // 0)
+                        else 0
+                        end;
+                    def clamp_pct:
+                        if . < 0 then 0 elif . > 100 then 100 else . end;
+                    def parse_ts:
+                        if . == null or . == "" then 0
+                        else
+                            (tostring
+                             | sub("\\.[0-9]+"; "")
+                             | sub("\\+00:00$"; "Z")
+                             | sub("\\+0000$"; "Z")
+                             | fromdateiso8601?) // 0
+                        end;
+                    def period_name($type):
+                        if ($type | tostring | test("WEEKLY"; "i")) then "Weekly"
+                        elif ($type | tostring | test("MONTHLY"; "i")) then "Monthly"
+                        elif ($type | tostring | test("DAILY"; "i")) then "Daily"
+                        elif ($type | tostring | test("HOUR"; "i")) then "Hourly"
+                        else "Usage"
+                        end;
+                    .config as $c |
+                    ($c.currentPeriod.end // $c.billingPeriodEnd // null | parse_ts) as $reset |
+                    ($c.currentPeriod.type // "" | period_name(.)) as $period |
+                    # SuperGrok uses one shared credit pool; productUsage is only a breakdown.
+                    (
+                        if $c.creditUsagePercent != null then
+                            [{
+                                name: $period,
+                                percentUsed: (($c.creditUsagePercent | number) | clamp_pct),
+                                resetAt: $reset
+                            }]
+                        else []
+                        end
+                    ) as $entries |
+                    if ($entries | length) == 0 then
+                        error("no quota windows")
+                    else
+                        {
+                            status: "ok",
+                            plan: (if $c.isUnifiedBillingUser == true then "SuperGrok" else "Grok" end),
+                            email: (if $email == "" then null else $email end),
+                            entries: $entries
+                        }
+                    end
+                ' 2>/dev/null) || grok_data='{"status":"error","error":"Could not parse Grok billing response"}'
+                ;;
+            401|403)
+                grok_data='{"status":"error","reason":"auth_expired","error":"Grok login expired. Run grok login again, then refresh AI Quotas."}'
+                ;;
+            000)
+                grok_data='{"status":"error","reason":"network","error":"Could not reach the Grok billing service. Check your connection and try again."}'
+                ;;
+            *)
+                grok_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Grok billing service returned HTTP $grok_http_code. Try again shortly.\"}"
+                ;;
+        esac
+    else
+        grok_data='{"status":"unavailable","reason":"not_authenticated","error":"Grok is not logged in. Run grok login in a terminal, then refresh AI Quotas."}'
+    fi
+fi
+
+# ============================================================
 # Antigravity
 # ============================================================
 agy_data='{"status":"unavailable"}'
@@ -390,8 +484,9 @@ out=$(jq -c -n \
     --argjson codex "$codex_data" \
     --argjson oc "$oc_data" \
     --argjson ds "$ds_data" \
+    --argjson grok "$grok_data" \
     --argjson agy "$agy_data" \
-    '{captured_at: $now, codex: $codex, opencode: $oc, deepseek: $ds, antigravity: $agy}') || exit 2
+    '{captured_at: $now, codex: $codex, opencode: $oc, deepseek: $ds, grok: $grok, antigravity: $agy}') || exit 2
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"

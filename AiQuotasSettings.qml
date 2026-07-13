@@ -37,6 +37,13 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "grokEnabled"
+        label: "Grok"
+        description: "Show SuperGrok plan usage from your local grok login"
+        defaultValue: true
+    }
+
+    ToggleSetting {
         settingKey: "antigravityEnabled"
         label: "Antigravity"
         description: "Show Antigravity agent and model quotas"
