@@ -13,6 +13,7 @@ PluginComponent {
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
@@ -121,7 +122,7 @@ PluginComponent {
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"] }
+        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], antigravity: ["Gemini Models - Five Hour Limit"] }
     }
 
     function savedSetting(key, fallback) {
@@ -142,7 +143,7 @@ PluginComponent {
         }
         var defaults = defaultPinState()
         var next = {}
-        var providers = ["codex", "opencode", "deepseek"]
+        var providers = ["codex", "opencode", "deepseek", "antigravity"]
         for (var i = 0; i < providers.length; i++) {
             var provider = providers[i]
             next[provider] = raw && Array.isArray(raw[provider]) ? raw[provider] : defaults[provider]
@@ -162,7 +163,7 @@ PluginComponent {
 
     function togglePin(provider, name) {
         var next = {}
-        var providers = ["codex", "opencode", "deepseek"]
+        var providers = ["codex", "opencode", "deepseek", "antigravity"]
         for (var i = 0; i < providers.length; i++)
             next[providers[i]] = (pinState[providers[i]] || []).slice()
         var pins = next[provider] || []
@@ -185,12 +186,14 @@ PluginComponent {
 
     function pinnedCodexEntries() { return pinnedEntries("codex", codexEntries()) }
     function pinnedOpenCodeEntries() { return pinnedEntries("opencode", ocEntries()) }
+    function pinnedAntigravityEntries() { return pinnedEntries("antigravity", antigravityEntries()) }
     function deepSeekPinned() { return isPinned("deepseek", "balance") }
 
     function providerEnabled(provider) {
         if (provider === "codex") return codexEnabled
         if (provider === "opencode") return openCodeEnabled
         if (provider === "deepseek") return deepSeekEnabled
+        if (provider === "antigravity") return antigravityEnabled
         return false
     }
 
@@ -199,12 +202,13 @@ PluginComponent {
         if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
         if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "assets/deepseek-logo.svg" })
+        if (antigravityEnabled) out.push({ id: "antigravity", label: "Antigravity", icon: "assets/antigravity-logo.svg" })
         return out
     }
 
     function ensureSelectedProvider() {
         if (providerEnabled(selectedProvider)) return
-        var providers = ["codex", "opencode", "deepseek"]
+        var providers = ["codex", "opencode", "deepseek", "antigravity"]
         for (var i = 0; i < providers.length; i++) {
             if (providerEnabled(providers[i])) {
                 selectedProvider = providers[i]
@@ -213,12 +217,47 @@ PluginComponent {
         }
     }
 
+
     function codexEntries() {
         try {
             if (!usageData || !usageData.codex) return []
             if (usageData.codex.status !== "ok") return []
             return usageData.codex.entries || []
         } catch (e) { return [] }
+    }
+
+    function antigravityEntries() {
+        try {
+            if (!usageData || !usageData.antigravity) return []
+            if (usageData.antigravity.status !== "ok") return []
+            return usageData.antigravity.entries || []
+        } catch (e) { return [] }
+    }
+
+    function antigravityGroups() {
+        var entries = antigravityEntries()
+        var groups = []
+        var seen = {}
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i]
+            var parts = entry.name.split(" - ")
+            var groupName = parts.length > 1 ? parts[0] : "Antigravity Models"
+            var limitName = parts.length > 1 ? parts[1] : entry.name
+            if (!seen[groupName]) {
+                seen[groupName] = {
+                    name: groupName,
+                    entries: []
+                }
+                groups.push(seen[groupName])
+            }
+            seen[groupName].entries.push({
+                rawName: entry.name,
+                name: limitName,
+                percentUsed: entry.percentUsed,
+                resetAt: entry.resetAt
+            })
+        }
+        return groups
     }
 
     function hasDeepSeek() {
@@ -409,9 +448,41 @@ PluginComponent {
                     }
                 }
 
-                // Separator before OpenCode or DeepSeek
+                // Separator after Codex
                 Rectangle {
-                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
+                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedAntigravityEntries().length > 0 || root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Antigravity pinned entries
+                Repeater {
+                    model: root.pinnedAntigravityEntries()
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/antigravity-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after Antigravity
+                Rectangle {
+                    visible: root.pinnedAntigravityEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek())
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -476,6 +547,7 @@ PluginComponent {
         }
     }
 
+
     verticalBarPill: Component {
         StyledRect {
             id: pillV
@@ -516,6 +588,28 @@ PluginComponent {
                         }
                     }
                 }
+
+                Repeater {
+                    model: root.pinnedAntigravityEntries()
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/antigravity-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
 
                 Repeater {
                     model: root.pinnedOpenCodeEntries()
@@ -567,8 +661,8 @@ PluginComponent {
 
     // --- Popout ---
 
-    popoutWidth: 360
-    popoutHeight: 620
+    popoutWidth: 420
+    popoutHeight: 700
     popoutContent: Component {
         PopoutComponent {
             id: popout
@@ -761,6 +855,153 @@ PluginComponent {
                                         return "Codex login expired.\nRun codex login again, then wait for the next refresh."
                                     if (c && c.error) return c.error
                                     return "No Codex usage data."
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Antigravity container ---
+                    Column {
+                        visible: root.selectedProvider === "antigravity" && root.antigravityEnabled
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        Repeater {
+                            model: root.antigravityGroups()
+                            delegate: StyledRect {
+                                width: parent.width
+                                height: agyGroupColumn.implicitHeight + Theme.spacingM * 2
+                                radius: Theme.cornerRadius
+                                color: Theme.surfaceContainerHigh
+
+                                Column {
+                                    id: agyGroupColumn
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.spacingM
+                                    spacing: Theme.spacingS
+
+                                    StyledText {
+                                        text: modelData.name
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.Bold
+                                    }
+
+                                    Repeater {
+                                        model: modelData.entries
+                                        delegate: Column {
+                                            width: parent.width
+                                            spacing: Theme.spacingS
+                                            Row {
+                                                width: parent.width
+                                                spacing: Theme.spacingM
+                                                Image {
+                                                    source: root.pluginDir + "assets/antigravity-logo.svg"
+                                                    sourceSize.width: 28
+                                                    sourceSize.height: 28
+                                                    width: 28; height: 28
+                                                    fillMode: Image.PreserveAspectFit
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                }
+                                                Column {
+                                                    width: parent.width - 40 - 28 - Theme.spacingM
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    spacing: 2
+                                                    StyledText {
+                                                        text: modelData.name
+                                                        color: Theme.surfaceVariantText
+                                                        font.pixelSize: Theme.fontSizeSmall
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                    StyledText {
+                                                        text: root.pctStr(modelData.percentUsed || 0)
+                                                        color: Theme.surfaceText
+                                                        font.pixelSize: Theme.fontSizeLarge
+                                                        font.weight: Font.Bold
+                                                    }
+                                                }
+                                                Rectangle {
+                                                    width: 28; height: 28; radius: 14
+                                                    color: root.isPinned("antigravity", modelData.rawName)
+                                                        ? Theme.surfaceSelected
+                                                        : (agyPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                                    border.color: root.isPinned("antigravity", modelData.rawName)
+                                                        ? Theme.outlineMedium : Theme.outlineVariant
+                                                    border.width: 1
+                                                    anchors.verticalCenter: parent.verticalCenter
+
+                                                    MouseArea {
+                                                        id: agyPinArea
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: root.togglePin("antigravity", modelData.rawName)
+                                                    }
+
+                                                    DankIcon {
+                                                        anchors.centerIn: parent
+                                                        name: "push_pin"
+                                                        size: 17
+                                                        color: root.isPinned("antigravity", modelData.rawName)
+                                                            ? Theme.primary : Theme.surfaceVariantText
+                                                        rotation: root.isPinned("antigravity", modelData.rawName) ? 0 : 45
+                                                    }
+                                                }
+                                            }
+                                            Rectangle {
+                                                id: agyProgressTrack
+                                                width: parent.width
+                                                height: 8
+                                                radius: 4
+                                                color: Theme.outlineVariant
+                                                Rectangle {
+                                                    width: agyProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                                    height: parent.height
+                                                    radius: parent.radius
+                                                    color: Theme.primary
+                                                }
+                                            }
+                                            StyledText {
+                                                visible: root.showResetTime && modelData.resetAt > 0
+                                                text: root.resetLabel(modelData.resetAt)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        StyledRect {
+                            visible: root.antigravityEntries().length === 0
+                            width: parent.width
+                            height: agyErrorCard.implicitHeight + Theme.spacingM * 2
+                            radius: Theme.cornerRadius
+                            color: Theme.surfaceContainerHigh
+
+                            Column {
+                                id: agyErrorCard
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingM
+                                spacing: Theme.spacingS
+
+                                StyledText {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    color: {
+                                        var a = root.usageData && root.usageData.antigravity
+                                        return a && a.reason === "not_authenticated" ? Theme.warning : Theme.surfaceVariantText
+                                    }
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    text: {
+                                        if (!root.usageData) return "Loading..."
+                                        var a = root.usageData.antigravity
+                                        if (a && a.reason === "not_authenticated")
+                                            return "Antigravity is not connected.\nRun agy login in a terminal, then wait for the next refresh."
+                                        if (a && a.error) return a.error
+                                        return "No Antigravity usage data."
+                                    }
                                 }
                             }
                         }
