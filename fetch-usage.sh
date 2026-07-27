@@ -1,7 +1,7 @@
 #!/bin/sh
 # Fetch Claude, Codex and OpenCode Go usage plus DeepSeek balance and SuperGrok plan quotas, merge, cache, and print.
 #
-# Claude: GET https://api.anthropic.com/api/oauth/usage using the local Claude Code login
+# Claude: reads native rate-limit data captured from Claude Code's status line
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
@@ -12,6 +12,8 @@
 #   AIQ_CODEX_ENABLED         "1" to fetch Codex (default: "1")
 #   CACHE_FILE                cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
 #   CLAUDE_CONFIG_DIR         Claude Code config directory (default $HOME/.claude)
+#   CLAUDE_USAGE_FILE         native Claude usage snapshot
+#   CLAUDE_FALLBACK_STATE_FILE fallback poll state
 #   CODEX_HOME                Codex home directory (default $HOME/.codex)
 #   GROK_HOME                 Grok home directory (default $HOME/.grok)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
@@ -63,7 +65,7 @@ if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
 fi
 
 # ============================================================
-# Claude plan usage (OAuth via claude login, not API key)
+# Claude plan usage from native status data with a five-minute API fallback
 # ============================================================
 claude_data='{"status":"unavailable"}'
 if [ "$claude_enabled" = "1" ]; then
@@ -89,8 +91,24 @@ if [ "$claude_enabled" = "1" ]; then
             ;;
     esac
 
-    if [ -n "$access_token" ]; then
-        claude_response=$(curl -s -m 15 -w '\n%{http_code}' \
+    claude_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas"
+    claude_usage="${CLAUDE_USAGE_FILE:-$claude_cache_dir/claude-native.json}"
+    claude_fallback_state="${CLAUDE_FALLBACK_STATE_FILE:-$claude_cache_dir/claude-fallback.json}"
+    mkdir -p "$(dirname "$claude_usage")" "$(dirname "$claude_fallback_state")" 2>/dev/null
+    claude_captured=$(jq -r '.captured_at // 0' "$claude_usage" 2>/dev/null)
+    claude_checked=$(jq -r '.checked_at // 0' "$claude_fallback_state" 2>/dev/null)
+    claude_retry=$(jq -r '.retry_at // 0' "$claude_fallback_state" 2>/dev/null)
+    case "$claude_captured" in ''|*[!0-9]*) claude_captured=0 ;; esac
+    case "$claude_checked" in ''|*[!0-9]*) claude_checked=0 ;; esac
+    case "$claude_retry" in ''|*[!0-9]*) claude_retry=0 ;; esac
+
+    claude_error=""
+    if [ -n "$access_token" ] &&
+       [ $((now - claude_captured)) -ge 300 ] &&
+       [ $((now - claude_checked)) -ge 300 ] &&
+       [ "$now" -ge "$claude_retry" ]; then
+        claude_headers=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-headers.XXXXXX")
+        claude_response=$(curl -s -m 15 -D "$claude_headers" -w '\n%{http_code}' \
             -H "Authorization: Bearer $access_token" \
             -H "Accept: application/json" \
             -H "anthropic-beta: oauth-2025-04-20" \
@@ -98,9 +116,11 @@ if [ "$claude_enabled" = "1" ]; then
             https://api.anthropic.com/api/oauth/usage 2>/dev/null)
         claude_http_code=$(printf '%s\n' "$claude_response" | tail -n 1)
         claude_body=$(printf '%s\n' "$claude_response" | sed '$d')
+        claude_retry_at=0
+
         case "$claude_http_code" in
             2??)
-                claude_data=$(printf '%s' "$claude_body" | jq -c --arg plan "$claude_plan" '
+                claude_snapshot=$(printf '%s' "$claude_body" | jq -c --argjson now "$now" '
                     def number:
                         if type == "number" then .
                         elif type == "string" then (tonumber? // 0)
@@ -118,9 +138,9 @@ if [ "$claude_enabled" = "1" ]; then
                              | fromdateiso8601?) // 0
                         end;
                     def titleize:
-                        (tostring | split("_")
-                         | map(if . == "" then . else (.[0:1] | ascii_upcase) + .[1:] end)
-                         | join(" "));
+                        split("_")
+                        | map(if . == "" then . else (.[0:1] | ascii_upcase) + .[1:] end)
+                        | join(" ");
                     def limit_name($kind):
                         ($kind | tostring) as $k |
                         if $k == "session" then "5h"
@@ -129,11 +149,9 @@ if [ "$claude_enabled" = "1" ]; then
                             "Weekly (" + ($k | ltrimstr("weekly_") | titleize) + ")"
                         else ($k | titleize)
                         end;
-                    . as $root |
-                    # Newer responses carry a limits[] array; older ones only the named windows.
                     (
-                        if ($root.limits | type) == "array" then
-                            [$root.limits[]
+                        if (.limits | type) == "array" then
+                            [.limits[]
                              | select(.percent != null)
                              | {
                                  name: limit_name(.kind),
@@ -142,47 +160,68 @@ if [ "$claude_enabled" = "1" ]; then
                                }]
                         else []
                         end
-                    ) as $from_limits |
+                    ) as $limits |
                     (
-                        [{n: "5h", w: $root.five_hour},
-                         {n: "Weekly", w: $root.seven_day},
-                         {n: "Weekly (Opus)", w: $root.seven_day_opus},
-                         {n: "Weekly (Sonnet)", w: $root.seven_day_sonnet}]
-                        | map(select(.w != null and .w.utilization != null))
+                        [{name: "5h", window: .five_hour},
+                         {name: "Weekly", window: .seven_day},
+                         {name: "Weekly (Opus)", window: .seven_day_opus},
+                         {name: "Weekly (Sonnet)", window: .seven_day_sonnet}]
+                        | map(select(.window.utilization != null))
                         | map({
-                            name: .n,
-                            percentUsed: ((.w.utilization | number) | clamp_pct),
-                            resetAt: (.w.resets_at | parse_ts)
+                            name: .name,
+                            percentUsed: ((.window.utilization | number) | clamp_pct),
+                            resetAt: (.window.resets_at | parse_ts)
                           })
-                    ) as $from_windows |
-                    (if ($from_limits | length) > 0 then $from_limits else $from_windows end) as $entries |
-                    if ($entries | length) == 0 then
-                        error("no quota windows")
-                    else
-                        {
-                            status: "ok",
-                            plan: $plan,
-                            entries: $entries
-                        }
+                    ) as $windows |
+                    (if ($limits | length) > 0 then $limits else $windows end) as $entries |
+                    if ($entries | length) == 0 then error("no quota windows")
+                    else {captured_at: $now, entries: $entries}
                     end
-                ' 2>/dev/null) || claude_data='{"status":"error","error":"Could not parse Claude usage response"}'
+                ' 2>/dev/null) || claude_snapshot=""
+                if [ -n "$claude_snapshot" ]; then
+                    claude_tmp=$(mktemp "$(dirname "$claude_usage")/.claude-usage.XXXXXX")
+                    printf '%s\n' "$claude_snapshot" > "$claude_tmp" && mv "$claude_tmp" "$claude_usage"
+                else
+                    claude_error='{"status":"error","error":"Could not parse Claude usage response"}'
+                fi
                 ;;
             401)
-                claude_data='{"status":"error","reason":"auth_expired","error":"Claude login expired. Start claude in a terminal to refresh it, then refresh AI Quotas."}'
+                claude_error='{"status":"error","reason":"auth_expired","error":"Claude login expired. Start claude in a terminal to refresh it, then refresh AI Quotas."}'
                 ;;
             403)
-                claude_data='{"status":"error","reason":"access_denied","error":"Claude usage access was denied for this account."}'
+                claude_error='{"status":"error","reason":"access_denied","error":"Claude usage access was denied for this account."}'
                 ;;
             429)
-                claude_data='{"status":"error","reason":"rate_limited","error":"Claude usage is temporarily rate limited. Try again shortly."}'
+                retry_after=$(sed -n 's/^[Rr]etry-[Aa]fter:[[:space:]]*//p' "$claude_headers" | tr -d '\r' | tail -n 1)
+                case "$retry_after" in
+                    '') claude_retry_at=$((now + 3600)) ;;
+                    *[!0-9]*)
+                        claude_retry_at=$(date -d "$retry_after" +%s 2>/dev/null || printf '%s' $((now + 3600)))
+                        ;;
+                    *) claude_retry_at=$((now + retry_after)) ;;
+                esac
                 ;;
-            000)
-                claude_data='{"status":"error","reason":"network","error":"Could not reach the Claude usage service. Check your connection and try again."}'
-                ;;
-            *)
-                claude_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Claude usage service returned HTTP $claude_http_code. Try again shortly.\"}"
-                ;;
+            000) ;;
+            *) ;;
         esac
+        rm -f "$claude_headers"
+
+        fallback_tmp=$(mktemp "$(dirname "$claude_fallback_state")/.claude-fallback.XXXXXX")
+        jq -n -c --argjson checked "$now" --argjson retry "$claude_retry_at" \
+            '{checked_at: $checked, retry_at: $retry}' > "$fallback_tmp" &&
+            mv "$fallback_tmp" "$claude_fallback_state"
+    fi
+
+    if [ -n "$claude_error" ]; then
+        claude_data="$claude_error"
+    elif [ -s "$claude_usage" ]; then
+        claude_data=$(jq -c --arg plan "$claude_plan" '
+            select((.entries | type) == "array" and (.entries | length) > 0)
+            | {status: "ok", plan: $plan, entries: .entries}
+        ' "$claude_usage" 2>/dev/null)
+        [ -n "$claude_data" ] || claude_data='{"status":"error","error":"Could not parse Claude usage data"}'
+    elif [ -n "$access_token" ]; then
+        claude_data='{"status":"unavailable","reason":"usage_pending","error":"Claude usage data is not available yet. Try again after the next refresh."}'
     else
         claude_data='{"status":"unavailable","reason":"not_authenticated","error":"Claude is not logged in. Run claude in a terminal and sign in, then refresh AI Quotas."}'
     fi

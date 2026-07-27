@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -9,7 +8,6 @@ PluginComponent {
     id: root
     pluginId: "aiQuotas"
 
-    property int refreshInterval: pluginData.refreshInterval || 60
     property bool claudeEnabled: pluginData.claudeEnabled !== false
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
@@ -17,8 +15,6 @@ PluginComponent {
     property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
-    property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
-    property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
     property string displayMode: pluginData.displayMode || "remaining"
     property bool showResetTime: pluginData.showResetTime !== false
     property bool showResetCountdown: pluginData.showResetCountdown === true
@@ -31,71 +27,25 @@ PluginComponent {
 
     property var usageData: null
     property bool fetchFailed: false
-    property bool fetchQueued: false
     property var pinState: ({})
     property string selectedProvider: "claude"
 
-    Timer {
-        id: refreshTimer
-        interval: root.refreshInterval * 1000
-        running: true
-        repeat: true
-        triggeredOnStart: false
-        onTriggered: root.requestFetch()
-    }
-
-    Process {
-        id: fetchProcess
-        command: [
-            "env",
-            "AIQ_CLAUDE_ENABLED=" + (root.claudeEnabled ? "1" : "0"),
-            "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
-            "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
-            "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
-            "AIQ_GROK_ENABLED=" + (root.grokEnabled ? "1" : "0"),
-            "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
-            "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
-            "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
-            "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
-            "sh", root.pluginDir + "fetch-usage.sh"
-        ]
-        stdout: SplitParser {
-            onRead: line => {
-                try {
-                    var t = line.trim()
-                    if (t.length === 0) return
-                    root.usageData = JSON.parse(t)
-                    root.fetchFailed = false
-                } catch (e) {}
+    function loadUsageData() {
+        try {
+            var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
+            if (c) {
+                root.usageData = c
+                root.fetchFailed = false
             }
+        } catch (e) {
+            if (!root.usageData) root.fetchFailed = true
         }
-        stderr: SplitParser { onRead: line => {} }
-        onExited: code => {
-            if (code !== 0 && !root.usageData) root.fetchFailed = true
-            if (root.fetchQueued) {
-                root.fetchQueued = false
-                Qt.callLater(root.requestFetch)
-            }
-        }
-    }
-
-    function requestFetch() {
-        if (fetchProcess.running) {
-            fetchQueued = true
-            return
-        }
-        fetchProcess.running = true
     }
 
     Component.onCompleted: {
         root.loadPinState()
         root.ensureSelectedProvider()
-        try {
-            var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
-            if (c) root.usageData = c
-        } catch (e) {}
-        // PluginComponent loads pluginData after child completion; defer the first request.
-        Qt.callLater(root.requestFetch)
+        root.loadUsageData()
     }
 
     // PluginComponent injects pluginData after child completion during startup.
@@ -119,9 +69,17 @@ PluginComponent {
                 Qt.callLater(function () {
                     root.loadPinState()
                     root.ensureSelectedProvider()
-                    root.requestFetch()
                 })
             }
+        }
+    }
+
+    Connections {
+        target: root.pluginService
+        enabled: root.pluginService !== null
+        function onPluginStateChanged(changedPluginId) {
+            if (changedPluginId === "aiQuotas")
+                root.loadUsageData()
         }
     }
 
