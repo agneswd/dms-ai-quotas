@@ -9,6 +9,7 @@ PluginComponent {
     pluginId: "aiQuotas"
 
     property int refreshInterval: pluginData.refreshInterval || 60
+    property bool claudeEnabled: pluginData.claudeEnabled !== false
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
@@ -40,6 +41,7 @@ PluginComponent {
         id: fetchProcess
         command: [
             "env",
+            "AIQ_CLAUDE_ENABLED=" + (root.claudeEnabled ? "1" : "0"),
             "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
             "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),

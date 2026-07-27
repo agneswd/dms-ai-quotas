@@ -1,14 +1,17 @@
 #!/bin/sh
-# Fetch Codex and OpenCode Go usage plus DeepSeek balance and SuperGrok plan quotas, merge, cache, and print.
+# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek balance and SuperGrok plan quotas, merge, cache, and print.
 #
+# Claude: GET https://api.anthropic.com/api/oauth/usage using the local Claude Code login
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
 # Grok: SuperGrok plan usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
+#   AIQ_CLAUDE_ENABLED        "1" to fetch Claude (default: "1")
 #   AIQ_CODEX_ENABLED         "1" to fetch Codex (default: "1")
 #   CACHE_FILE                cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
+#   CLAUDE_CONFIG_DIR         Claude Code config directory (default $HOME/.claude)
 #   CODEX_HOME                Codex home directory (default $HOME/.codex)
 #   GROK_HOME                 Grok home directory (default $HOME/.grok)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
@@ -21,6 +24,7 @@
 #   AIQ_USAGE_MOCK            file with sample JSON (for tests)
 set -u
 
+claude_enabled="${AIQ_CLAUDE_ENABLED:-1}"
 oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
 ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
 codex_enabled="${AIQ_CODEX_ENABLED:-1}"
@@ -35,6 +39,9 @@ if [ -s "$cache" ]; then
     prev=$(jq -r '.captured_at // 0' "$cache" 2>/dev/null)
     case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
     cache_usable=1
+    if [ "$claude_enabled" = "1" ] && ! jq -e 'has("claude")' "$cache" >/dev/null 2>&1; then
+        cache_usable=0
+    fi
     if [ "$codex_enabled" = "1" ] && ! jq -e 'has("codex")' "$cache" >/dev/null 2>&1; then
         cache_usable=0
     fi
@@ -53,6 +60,132 @@ fi
 if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
     cat "$AIQ_USAGE_MOCK"
     exit 0
+fi
+
+# ============================================================
+# Claude plan usage (OAuth via claude login, not API key)
+# ============================================================
+claude_data='{"status":"unavailable"}'
+if [ "$claude_enabled" = "1" ]; then
+    claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    claude_creds="$claude_home/.credentials.json"
+    access_token=$(jq -r '.claudeAiOauth.accessToken // empty' "$claude_creds" 2>/dev/null)
+    sub_type=$(jq -r '.claudeAiOauth.subscriptionType // empty' "$claude_creds" 2>/dev/null)
+    rate_tier=$(jq -r '.claudeAiOauth.rateLimitTier // empty' "$claude_creds" 2>/dev/null)
+
+    case "$rate_tier" in
+        *max_20x*) claude_plan="Max 20x" ;;
+        *max_5x*)  claude_plan="Max 5x" ;;
+        *)
+            case "$sub_type" in
+                pro) claude_plan="Pro" ;;
+                max) claude_plan="Max" ;;
+                team) claude_plan="Team" ;;
+                enterprise) claude_plan="Enterprise" ;;
+                free) claude_plan="Free" ;;
+                '') claude_plan="Claude" ;;
+                *) claude_plan="$sub_type" ;;
+            esac
+            ;;
+    esac
+
+    if [ -n "$access_token" ]; then
+        claude_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $access_token" \
+            -H "Accept: application/json" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: dms-ai-quotas" \
+            https://api.anthropic.com/api/oauth/usage 2>/dev/null)
+        claude_http_code=$(printf '%s\n' "$claude_response" | tail -n 1)
+        claude_body=$(printf '%s\n' "$claude_response" | sed '$d')
+        case "$claude_http_code" in
+            2??)
+                claude_data=$(printf '%s' "$claude_body" | jq -c --arg plan "$claude_plan" '
+                    def number:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // 0)
+                        else 0
+                        end;
+                    def clamp_pct:
+                        if . < 0 then 0 elif . > 100 then 100 else . end;
+                    def parse_ts:
+                        if . == null or . == "" then 0
+                        else
+                            (tostring
+                             | sub("\\.[0-9]+"; "")
+                             | sub("\\+00:00$"; "Z")
+                             | sub("\\+0000$"; "Z")
+                             | fromdateiso8601?) // 0
+                        end;
+                    def titleize:
+                        (tostring | split("_")
+                         | map(if . == "" then . else (.[0:1] | ascii_upcase) + .[1:] end)
+                         | join(" "));
+                    def limit_name($kind):
+                        ($kind | tostring) as $k |
+                        if $k == "session" then "5h"
+                        elif $k == "weekly_all" then "Weekly"
+                        elif ($k | startswith("weekly_")) then
+                            "Weekly (" + ($k | ltrimstr("weekly_") | titleize) + ")"
+                        else ($k | titleize)
+                        end;
+                    . as $root |
+                    # Newer responses carry a limits[] array; older ones only the named windows.
+                    (
+                        if ($root.limits | type) == "array" then
+                            [$root.limits[]
+                             | select(.percent != null)
+                             | {
+                                 name: limit_name(.kind),
+                                 percentUsed: ((.percent | number) | clamp_pct),
+                                 resetAt: (.resets_at | parse_ts)
+                               }]
+                        else []
+                        end
+                    ) as $from_limits |
+                    (
+                        [{n: "5h", w: $root.five_hour},
+                         {n: "Weekly", w: $root.seven_day},
+                         {n: "Weekly (Opus)", w: $root.seven_day_opus},
+                         {n: "Weekly (Sonnet)", w: $root.seven_day_sonnet}]
+                        | map(select(.w != null and .w.utilization != null))
+                        | map({
+                            name: .n,
+                            percentUsed: ((.w.utilization | number) | clamp_pct),
+                            resetAt: (.w.resets_at | parse_ts)
+                          })
+                    ) as $from_windows |
+                    (if ($from_limits | length) > 0 then $from_limits else $from_windows end) as $entries |
+                    if ($entries | length) == 0 then
+                        error("no quota windows")
+                    else
+                        {
+                            status: "ok",
+                            plan: $plan,
+                            entries: $entries
+                        }
+                    end
+                ' 2>/dev/null) || claude_data='{"status":"error","error":"Could not parse Claude usage response"}'
+                ;;
+            401)
+                claude_data='{"status":"error","reason":"auth_expired","error":"Claude login expired. Start claude in a terminal to refresh it, then refresh AI Quotas."}'
+                ;;
+            403)
+                claude_data='{"status":"error","reason":"access_denied","error":"Claude usage access was denied for this account."}'
+                ;;
+            429)
+                claude_data='{"status":"error","reason":"rate_limited","error":"Claude usage is temporarily rate limited. Try again shortly."}'
+                ;;
+            000)
+                claude_data='{"status":"error","reason":"network","error":"Could not reach the Claude usage service. Check your connection and try again."}'
+                ;;
+            *)
+                claude_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Claude usage service returned HTTP $claude_http_code. Try again shortly.\"}"
+                ;;
+        esac
+    else
+        claude_data='{"status":"unavailable","reason":"not_authenticated","error":"Claude is not logged in. Run claude in a terminal and sign in, then refresh AI Quotas."}'
+    fi
 fi
 
 # ============================================================
@@ -481,12 +614,13 @@ fi
 # ============================================================
 out=$(jq -c -n \
     --argjson now "$now" \
+    --argjson claude "$claude_data" \
     --argjson codex "$codex_data" \
     --argjson oc "$oc_data" \
     --argjson ds "$ds_data" \
     --argjson grok "$grok_data" \
     --argjson agy "$agy_data" \
-    '{captured_at: $now, codex: $codex, opencode: $oc, deepseek: $ds, grok: $grok, antigravity: $agy}') || exit 2
+    '{captured_at: $now, claude: $claude, codex: $codex, opencode: $oc, deepseek: $ds, grok: $grok, antigravity: $agy}') || exit 2
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"

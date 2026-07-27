@@ -10,6 +10,7 @@ PluginComponent {
     pluginId: "aiQuotas"
 
     property int refreshInterval: pluginData.refreshInterval || 60
+    property bool claudeEnabled: pluginData.claudeEnabled !== false
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
@@ -32,7 +33,7 @@ PluginComponent {
     property bool fetchFailed: false
     property bool fetchQueued: false
     property var pinState: ({})
-    property string selectedProvider: "codex"
+    property string selectedProvider: "claude"
 
     Timer {
         id: refreshTimer
@@ -47,6 +48,7 @@ PluginComponent {
         id: fetchProcess
         command: [
             "env",
+            "AIQ_CLAUDE_ENABLED=" + (root.claudeEnabled ? "1" : "0"),
             "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
             "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
@@ -123,9 +125,11 @@ PluginComponent {
         }
     }
 
+    readonly property var providerIds: ["claude", "codex", "opencode", "deepseek", "grok", "antigravity"]
+
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Weekly"], antigravity: ["Gemini Models - Five Hour Limit"] }
+        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Weekly"], antigravity: ["Gemini Models - Five Hour Limit"] }
     }
 
     function savedSetting(key, fallback) {
@@ -146,7 +150,7 @@ PluginComponent {
         }
         var defaults = defaultPinState()
         var next = {}
-        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
+        var providers = providerIds
         for (var i = 0; i < providers.length; i++) {
             var provider = providers[i]
             next[provider] = raw && Array.isArray(raw[provider]) ? raw[provider] : defaults[provider]
@@ -169,7 +173,7 @@ PluginComponent {
 
     function togglePin(provider, name) {
         var next = {}
-        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
+        var providers = providerIds
         for (var i = 0; i < providers.length; i++)
             next[providers[i]] = (pinState[providers[i]] || []).slice()
         var pins = next[provider] || []
@@ -190,6 +194,7 @@ PluginComponent {
         return out
     }
 
+    function pinnedClaudeEntries() { return pinnedEntries("claude", claudeEntries()) }
     function pinnedCodexEntries() { return pinnedEntries("codex", codexEntries()) }
     function pinnedOpenCodeEntries() { return pinnedEntries("opencode", ocEntries()) }
     function pinnedGrokEntries() { return pinnedEntries("grok", grokEntries()) }
@@ -197,6 +202,7 @@ PluginComponent {
     function deepSeekPinned() { return isPinned("deepseek", "balance") }
 
     function providerEnabled(provider) {
+        if (provider === "claude") return claudeEnabled
         if (provider === "codex") return codexEnabled
         if (provider === "opencode") return openCodeEnabled
         if (provider === "deepseek") return deepSeekEnabled
@@ -207,6 +213,7 @@ PluginComponent {
 
     function providerTabs() {
         var out = []
+        if (claudeEnabled) out.push({ id: "claude", label: "Claude", icon: "assets/claude-logo.svg" })
         if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
         if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "assets/deepseek-logo.svg" })
@@ -217,7 +224,7 @@ PluginComponent {
 
     function ensureSelectedProvider() {
         if (providerEnabled(selectedProvider)) return
-        var providers = ["codex", "opencode", "deepseek", "grok", "antigravity"]
+        var providers = providerIds
         for (var i = 0; i < providers.length; i++) {
             if (providerEnabled(providers[i])) {
                 selectedProvider = providers[i]
@@ -226,6 +233,14 @@ PluginComponent {
         }
     }
 
+
+    function claudeEntries() {
+        try {
+            if (!usageData || !usageData.claude) return []
+            if (usageData.claude.status !== "ok") return []
+            return usageData.claude.entries || []
+        } catch (e) { return [] }
+    }
 
     function codexEntries() {
         try {
@@ -353,6 +368,14 @@ PluginComponent {
         } catch (e) { return "OpenCode" }
     }
 
+    function claudeLabel(entry) {
+        try {
+            if (entry.name === "5h") return "5 hour usage limit"
+            if (entry.name === "Weekly") return "Weekly usage limit (all models)"
+            return entry.name + " usage limit"
+        } catch (e) { return "Claude usage limit" }
+    }
+
     function codexLabel(entry) {
         try {
             if (entry.name === "5h") return "5 hour usage limit"
@@ -456,6 +479,38 @@ PluginComponent {
                     text: "\u2733 -"
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeMedium
+                }
+
+                // Claude pinned entries
+                Repeater {
+                    model: root.pinnedClaudeEntries()
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/claude-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after Claude
+                Rectangle {
+                    visible: root.pinnedClaudeEntries().length > 0 && (root.pinnedCodexEntries().length > 0 || root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
                 }
 
                 // Codex 5-hour limit
@@ -631,6 +686,27 @@ PluginComponent {
                     text: "\u2733"
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeMedium
+                }
+
+                Repeater {
+                    model: root.pinnedClaudeEntries()
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/claude-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
                 }
 
                 Repeater {
@@ -822,6 +898,135 @@ PluginComponent {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.selectedProvider = modelData.id
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Claude card ---
+                    StyledRect {
+                        visible: root.selectedProvider === "claude" && root.claudeEnabled
+                        width: parent.width
+                        height: claudeCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: claudeCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.claudeEntries().length > 0
+                                text: root.usageData && root.usageData.claude && root.usageData.claude.plan
+                                    ? "Claude (" + root.usageData.claude.plan + ")" : "Claude"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            Repeater {
+                                model: root.claudeEntries()
+                                delegate: Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingM
+                                        Image {
+                                            source: root.pluginDir + "assets/claude-logo.svg"
+                                            sourceSize.width: 28
+                                            sourceSize.height: 28
+                                            width: 28; height: 28
+                                            fillMode: Image.PreserveAspectFit
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Column {
+                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            StyledText {
+                                                text: root.claudeLabel(modelData)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                            StyledText {
+                                                text: root.pctStr(modelData.percentUsed || 0)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeLarge
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 28; height: 28; radius: 14
+                                            color: root.isPinned("claude", modelData.name)
+                                                ? Theme.surfaceSelected
+                                                : (claudePinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                            border.color: root.isPinned("claude", modelData.name)
+                                                ? Theme.outlineMedium : Theme.outlineVariant
+                                            border.width: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            MouseArea {
+                                                id: claudePinArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.togglePin("claude", modelData.name)
+                                            }
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: "push_pin"
+                                                size: 17
+                                                color: root.isPinned("claude", modelData.name)
+                                                    ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned("claude", modelData.name) ? 0 : 45
+                                            }
+                                        }
+                                    }
+                                    Rectangle {
+                                        id: claudeProgressTrack
+                                        width: parent.width
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.outlineVariant
+                                        Rectangle {
+                                            width: claudeProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.primary
+                                        }
+                                    }
+                                    StyledText {
+                                        visible: root.showResetTime && modelData.resetAt > 0
+                                        text: root.resetLabel(modelData.resetAt)
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                    }
+                                }
+                            }
+
+                            StyledText {
+                                visible: root.claudeEntries().length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: {
+                                    var c = root.usageData && root.usageData.claude
+                                    return c && (c.reason === "not_authenticated" || c.reason === "auth_expired")
+                                        ? Theme.warning : Theme.surfaceVariantText
+                                }
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var c = root.usageData.claude
+                                    if (c && c.reason === "not_authenticated")
+                                        return "Claude is not connected.\nRun claude in a terminal and sign in, then wait for the next refresh."
+                                    if (c && c.reason === "auth_expired")
+                                        return "Claude login expired.\nStart claude in a terminal to refresh it, then wait for the next refresh."
+                                    if (c && c.error) return c.error
+                                    return "No Claude usage data."
                                 }
                             }
                         }

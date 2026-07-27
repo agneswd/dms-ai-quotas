@@ -16,6 +16,13 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "claudeEnabled"
+        label: "Claude"
+        description: "Show Claude plan usage limits from your local Claude Code login"
+        defaultValue: true
+    }
+
+    ToggleSetting {
         settingKey: "codexEnabled"
         label: "Codex"
         description: "Show Codex usage limits from your local Codex login"
