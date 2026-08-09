@@ -884,6 +884,15 @@ PluginComponent {
                                 font.weight: Font.Bold
                             }
 
+                            StyledText {
+                                visible: root.usageData && root.usageData.claude && root.usageData.claude.stale === true
+                                text: root.usageData && root.usageData.claude && root.usageData.claude.capturedAt > 0
+                                    ? "Last updated " + new Date(root.usageData.claude.capturedAt * 1000).toLocaleString()
+                                    : "Claude usage data is stale"
+                                color: Theme.warning
+                                font.pixelSize: Theme.fontSizeSmall
+                            }
+
                             Repeater {
                                 model: root.claudeEntries()
                                 delegate: Column {

@@ -39,7 +39,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 
 - DankMaterialShell >= 1.5.0
 - `curl` and `jq`
-- For Claude: Claude Code 2.1.80 or newer, installed and signed in (`claude`)
+- For Claude: Claude Code 2.1.220 or newer, installed and signed in (`claude`)
 - For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
@@ -80,13 +80,28 @@ Use the pin button beside any limit in the popout to choose which limits appear 
 
 ### Credentials
 
-Claude, Codex and Grok use their local CLI logins automatically. Sign in once with `claude`, `codex login` and `grok login`; no tokens need to be copied into DMS settings. Claude usage updates from Claude Code's native rate-limit data while it runs, with a fallback poll every five minutes while that data is stale.
+Claude, Codex and Grok use their local CLI logins automatically. Sign in once with `claude`, `codex login` and `grok login`; no tokens need to be copied into DMS settings. Claude usage comes from Claude Code's native rate-limit data and shows its last update time when stale.
 
 | Setting | Description |
 |---------|-------------|
 | DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
 | OpenCode Workspace ID | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
 | OpenCode Auth Cookie | The `auth` cookie from opencode.ai |
+
+### Enable Claude quota capture
+
+Add the plugin's capture script as your Claude Code status line in `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "sh ~/.config/DankMaterialShell/plugins/aiQuotas/claude-statusline.sh"
+  }
+}
+```
+
+Claude Code provides quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into that script instead of replacing it.
 
 ## How to get OpenCode credentials
 
@@ -99,10 +114,10 @@ Claude, Codex and Grok use their local CLI logins automatically. Sign in once wi
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query SuperGrok plan billing. DeepSeek’s balance endpoint provides account funds and availability, not usage history. Grok reports SuperGrok subscription usage (not API-key billing). No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query SuperGrok plan billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. Grok reports SuperGrok subscription usage (not API-key billing). No external npm packages required.
 
 ```
-Claude native data + 5m fallback   ---> local usage snapshot --------------\
+Claude native status data          ---> local usage snapshot --------------\
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
 curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
 Local quota files                  ---> ~/.antigravity_cockpit/...          ----> fetch-usage.sh ---> cache ---> Widget
