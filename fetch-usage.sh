@@ -254,8 +254,6 @@ if [ "$oc_enabled" = "1" ]; then
                 reset=$(printf '%s' "$data" | cut -d' ' -f2)
                 [ -z "$pct" ] || [ -z "$reset" ] && continue
 
-                remaining=$(printf '%s' "$pct" | awk '{printf "%d", 100 - $1}')
-
                 [ "$first" = "0" ] && entries="$entries,"
                 first=0
                 reset_at=$((now + ${reset%.*}))

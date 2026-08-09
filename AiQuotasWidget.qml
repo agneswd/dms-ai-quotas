@@ -26,20 +26,14 @@ PluginComponent {
     }
 
     property var usageData: null
-    property bool fetchFailed: false
     property var pinState: ({})
     property string selectedProvider: "claude"
 
     function loadUsageData() {
         try {
             var c = pluginService.loadPluginState("aiQuotas", "lastData", null)
-            if (c) {
-                root.usageData = c
-                root.fetchFailed = false
-            }
-        } catch (e) {
-            if (!root.usageData) root.fetchFailed = true
-        }
+            if (c) root.usageData = c
+        } catch (e) {}
     }
 
     Component.onCompleted: {
@@ -247,10 +241,6 @@ PluginComponent {
         return deepSeekEnabled && deepSeekPinned() && dsBalance() != null
     }
 
-    function hasGrok() {
-        return grokEnabled && pinnedGrokEntries().length > 0
-    }
-
     function grokEntries() {
         try {
             if (!usageData || !usageData.grok) return []
@@ -306,18 +296,6 @@ PluginComponent {
         } catch (e) { return Theme.surfaceVariantText }
     }
 
-    function findEntry(name) {
-        var entries = ocEntries()
-        for (var i = 0; i < entries.length; i++) {
-            if (entries[i].name === name) return entries[i]
-        }
-        return null
-    }
-
-    function visibleWindows() {
-        return ocEntries()
-    }
-
     function ocLabel(entry) {
         try {
             return entry.name === "Rolling" ? "Rolling (5h)" : entry.name
@@ -339,12 +317,6 @@ PluginComponent {
             if (entry.name === "Code Review") return "Code review usage limit"
             return entry.name + " usage limit"
         } catch (e) { return "Codex usage limit" }
-    }
-
-    function clr(pct) {
-        if (pct >= 90) return Theme.error
-        if (pct >= 70) return Theme.warning
-        return Theme.primary
     }
 
     function cdown(t) {
@@ -1297,7 +1269,7 @@ PluginComponent {
 
                             // OpenCode windows
                             Repeater {
-                                model: root.ocEntries().length > 0 ? root.visibleWindows() : []
+                                model: root.ocEntries()
                                 delegate: Column {
                                     width: parent.width
                                     spacing: Theme.spacingS

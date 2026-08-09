@@ -14,7 +14,6 @@
   "startupCheck": "./StartupCheck.qml",
   "icon": "speed",
   "requires_dms": ">=1.5.0",
-  "requires": ["curl", "jq"],
   "dependencies": ["curl", "jq"],
   "permissions": ["settings_read", "settings_write", "process", "network"]
 }
