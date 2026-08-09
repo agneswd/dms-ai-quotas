@@ -1,6 +1,7 @@
 #!/bin/sh
 # Capture Claude Code's native rate-limit data for AI Quotas.
 set -u
+umask 077
 
 cache="${CLAUDE_USAGE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/claude-native.json}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null || exit 0

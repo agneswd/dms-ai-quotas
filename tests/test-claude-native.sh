@@ -47,3 +47,4 @@ printf '%s\n' '{"rate_limits":{"five_hour":{"used_percentage":12,"resets_at":180
     CLAUDE_USAGE_FILE="$test_dir/captured.json" sh "$repo/claude-statusline.sh"
 jq -e '.entries == [{"name":"5h","percentUsed":12,"resetAt":1800000000}]' \
     "$test_dir/captured.json" >/dev/null
+[ "$(stat -c %a "$test_dir/captured.json")" = "600" ]

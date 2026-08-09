@@ -25,6 +25,7 @@
 #   AIQ_FORCE_REFRESH         "1" to bypass the cache
 #   AIQ_USAGE_MOCK            file with sample JSON (for tests)
 set -u
+umask 077
 
 claude_enabled="${AIQ_CLAUDE_ENABLED:-1}"
 oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
@@ -424,10 +425,12 @@ if [ "$agy_enabled" = "1" ]; then
 
             CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agy-usage"
             mkdir -p "$CACHE_DIR"
+            chmod 700 "$CACHE_DIR" 2>/dev/null || true
             TOKEN_CACHE="$CACHE_DIR/token.json"
             SECRET_CACHE="$CACHE_DIR/client_secret.txt"
             PROJECT_CACHE="$CACHE_DIR/project.txt"
             PLAN_CACHE="$CACHE_DIR/plan.txt"
+            chmod 600 "$TOKEN_CACHE" "$SECRET_CACHE" 2>/dev/null || true
 
             if ! token_valid "$EXPIRY_RAW"; then
                 if [ -f "$TOKEN_CACHE" ]; then

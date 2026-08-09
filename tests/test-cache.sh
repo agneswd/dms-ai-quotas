@@ -23,3 +23,4 @@ run_fetch() {
 
 run_fetch 0 | jq -e '.marker == "cached"' >/dev/null
 run_fetch 1 | jq -e 'has("marker") | not' >/dev/null
+[ "$(stat -c %a "$cache")" = "600" ]
