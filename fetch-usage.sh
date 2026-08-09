@@ -363,7 +363,11 @@ if [ "$grok_enabled" = "1" ]; then
                         end
                     ) as $entries |
                     if ($entries | length) == 0 then
-                        error("no quota windows")
+                        {
+                            status: "unavailable",
+                            reason: "no_quota",
+                            error: "Grok does not expose a billing quota for this account."
+                        }
                     else
                         {
                             status: "ok",
