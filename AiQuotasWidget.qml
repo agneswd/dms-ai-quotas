@@ -87,7 +87,7 @@ PluginComponent {
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Weekly"], antigravity: ["Gemini Models - Five Hour Limit"] }
+        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit"] }
     }
 
     function savedSetting(key, fallback) {
@@ -113,8 +113,9 @@ PluginComponent {
             var provider = providers[i]
             next[provider] = raw && Array.isArray(raw[provider]) ? raw[provider] : defaults[provider]
         }
-        // Migrate old Grok API-status pin to SuperGrok weekly quota pin.
-        if (next.grok && next.grok.length === 1 && next.grok[0] === "status")
+        // Migrate old Grok API-status and plan-period pins to the stable billing pin.
+        if (next.grok && next.grok.length === 1
+                && (next.grok[0] === "status" || next.grok[0] === "Weekly"))
             next.grok = defaults.grok.slice()
         pinState = next
     }
@@ -260,12 +261,9 @@ PluginComponent {
 
     function grokLabel(entry) {
         try {
-            if (entry.name === "Weekly") return "Weekly plan usage"
-            if (entry.name === "Monthly") return "Monthly plan usage"
-            if (entry.name === "Daily") return "Daily plan usage"
-            if (entry.name === "Hourly") return "Hourly plan usage"
-            if (entry.name === "Usage") return "Plan usage"
-            return entry.name + " plan usage"
+            if (entry.kind === "on_demand") return "On-demand spending cap"
+            if (entry.kind === "plan") return "Plan usage"
+            return entry.name
         } catch (e) { return "Grok plan usage" }
     }
 

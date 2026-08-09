@@ -46,7 +46,7 @@ PluginSettings {
     ToggleSetting {
         settingKey: "grokEnabled"
         label: "Grok"
-        description: "Show SuperGrok plan usage from your local grok login"
+        description: "Show billing usage from your local grok login"
         defaultValue: true
     }
 

@@ -1,7 +1,7 @@
 {
   "id": "aiQuotas",
   "name": "AI Quotas",
-  "description": "Claude, Codex, OpenCode, and Antigravity usage limits plus DeepSeek balance and SuperGrok plan quotas in your bar.",
+  "description": "Claude, Codex, OpenCode, and Antigravity usage limits plus DeepSeek balance and Grok billing quotas in your bar.",
   "version": "1.5.2",
   "author": "agneswd",
   "type": "composite",

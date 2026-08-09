@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Claude plan usage, Codex, OpenCode Go, Antigravity model quotas, DeepSeek API balance, and SuperGrok plan quotas in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Claude plan usage, Codex, OpenCode Go, Antigravity model quotas, DeepSeek API balance, and Grok billing quotas in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
@@ -15,7 +15,7 @@ Claude plan usage, Codex, OpenCode Go, Antigravity model quotas, DeepSeek API ba
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
 | **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
 | **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
-| **Grok** | SuperGrok plan usage | Weekly (or current period) usage % with reset time from local `grok login` |
+| **Grok** | Billing usage | Shared plan usage or on-demand spending-cap usage from local `grok login` |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
 
@@ -29,7 +29,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
 - Reset date/time or countdown shown for each usage limit
 - DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
-- SuperGrok plan usage card from local `grok login` (no API key)
+- Grok billing usage card from local `grok login` (no API key)
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
 - OpenCode Rolling (5h), Weekly, and Monthly windows are always available in the popout
@@ -70,7 +70,7 @@ Then in DMS:
 | OpenCode | on | Show OpenCode usage quotas |
 | Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
-| Grok | on | Show SuperGrok plan usage from the local Grok login |
+| Grok | on | Show billing usage from the local Grok login |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
 | Show Reset Times | on | Show reset information in the popout |
 | Show Reset Countdown | off | Use a countdown instead of the reset date and time |
@@ -114,7 +114,7 @@ Claude Code provides quota data after the first response in a session. If you al
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query SuperGrok plan billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. Grok reports SuperGrok subscription usage (not API-key billing). No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native status data          ---> local usage snapshot --------------\

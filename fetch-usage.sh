@@ -1,11 +1,11 @@
 #!/bin/sh
-# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek balance and SuperGrok plan quotas, merge, cache, and print.
+# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek balance and Grok billing quotas, merge, cache, and print.
 #
 # Claude: reads native rate-limit data captured from Claude Code's status line
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
-# Grok: SuperGrok plan usage via ~/.grok/auth.json + cli-chat-proxy billing
+# Grok: billing usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
 #   AIQ_CLAUDE_ENABLED        "1" to fetch Claude (default: "1")
@@ -302,7 +302,7 @@ if [ "$ds_enabled" = "1" ]; then
 fi
 
 # ============================================================
-# Grok SuperGrok plan usage (OAuth via grok login, not API key)
+# Grok billing usage (OAuth via grok login, not API key)
 # ============================================================
 grok_data='{"status":"unavailable"}'
 if [ "$grok_enabled" = "1" ]; then
@@ -316,7 +316,6 @@ if [ "$grok_enabled" = "1" ]; then
             -H "Authorization: Bearer $access_token" \
             -H "Accept: application/json" \
             -H "User-Agent: dms-ai-quotas" \
-            -H "x-grok-client-version: 0.2.99" \
             -H "x-grok-client-mode: cli" \
             "https://cli-chat-proxy.grok.com/v1/billing?format=credits" 2>/dev/null)
         grok_http_code=$(printf '%s\n' "$grok_response" | tail -n 1)
@@ -340,22 +339,25 @@ if [ "$grok_enabled" = "1" ]; then
                              | sub("\\+0000$"; "Z")
                              | fromdateiso8601?) // 0
                         end;
-                    def period_name($type):
-                        if ($type | tostring | test("WEEKLY"; "i")) then "Weekly"
-                        elif ($type | tostring | test("MONTHLY"; "i")) then "Monthly"
-                        elif ($type | tostring | test("DAILY"; "i")) then "Daily"
-                        elif ($type | tostring | test("HOUR"; "i")) then "Hourly"
-                        else "Usage"
-                        end;
+                    def amount:
+                        if type == "object" then (.val | number) else number end;
                     .config as $c |
                     ($c.currentPeriod.end // $c.billingPeriodEnd // null | parse_ts) as $reset |
-                    ($c.currentPeriod.type // "" | period_name(.)) as $period |
-                    # SuperGrok uses one shared credit pool; productUsage is only a breakdown.
+                    ($c.onDemandCap | amount) as $cap |
+                    ($c.onDemandUsed | amount) as $used |
                     (
                         if $c.creditUsagePercent != null then
                             [{
-                                name: $period,
+                                name: "Billing",
+                                kind: "plan",
                                 percentUsed: (($c.creditUsagePercent | number) | clamp_pct),
+                                resetAt: $reset
+                            }]
+                        elif $cap > 0 then
+                            [{
+                                name: "Billing",
+                                kind: "on_demand",
+                                percentUsed: ((100 * $used / $cap) | clamp_pct),
                                 resetAt: $reset
                             }]
                         else []
