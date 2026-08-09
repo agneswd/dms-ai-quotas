@@ -857,7 +857,8 @@ PluginComponent {
                             StyledText {
                                 visible: root.usageData && root.usageData.claude && root.usageData.claude.stale === true
                                 text: root.usageData && root.usageData.claude && root.usageData.claude.capturedAt > 0
-                                    ? "Last updated " + new Date(root.usageData.claude.capturedAt * 1000).toLocaleString()
+                                    ? "Updated " + new Date(root.usageData.claude.capturedAt * 1000).toLocaleTimeString(
+                                        Qt.locale(), SettingsData.use24HourClock ? "HH:mm" : "h:mm AP") + " - may be stale"
                                     : "Claude usage data is stale"
                                 color: Theme.warning
                                 font.pixelSize: Theme.fontSizeSmall
