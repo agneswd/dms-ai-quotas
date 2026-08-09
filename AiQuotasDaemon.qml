@@ -27,6 +27,9 @@ PluginComponent {
 
     property var usageData: null
     property bool fetchQueued: false
+    property bool queuedForce: false
+    property bool activeForce: false
+    property string lastFetchSignature: ""
 
     Timer {
         id: refreshTimer
@@ -47,6 +50,7 @@ PluginComponent {
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
             "AIQ_GROK_ENABLED=" + (root.grokEnabled ? "1" : "0"),
             "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
+            "AIQ_FORCE_REFRESH=" + (root.activeForce ? "1" : "0"),
             "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
             "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
             "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
@@ -65,18 +69,39 @@ PluginComponent {
         stderr: SplitParser { onRead: line => {} }
         onExited: code => {
             if (root.fetchQueued) {
+                var force = root.queuedForce
                 root.fetchQueued = false
-                Qt.callLater(root.requestFetch)
+                root.queuedForce = false
+                Qt.callLater(function () { root.requestFetch(force) })
             }
         }
     }
 
-    function requestFetch() {
+    function fetchSignature() {
+        return [claudeEnabled, codexEnabled, openCodeEnabled, deepSeekEnabled,
+            antigravityEnabled, grokEnabled, deepSeekApiKey,
+            openCodeWorkspaceId, openCodeAuthCookie].join("\u001f")
+    }
+
+    function requestFetch(force) {
         if (fetchProcess.running) {
             fetchQueued = true
+            queuedForce = queuedForce || force === true
             return
         }
+        activeForce = force === true
         fetchProcess.running = true
+    }
+
+    function fetchIfSettingsChanged() {
+        var signature = fetchSignature()
+        if (lastFetchSignature === "") {
+            lastFetchSignature = signature
+            return
+        }
+        if (signature === lastFetchSignature) return
+        lastFetchSignature = signature
+        requestFetch(true)
     }
 
     Connections {
@@ -84,7 +109,7 @@ PluginComponent {
         enabled: root.pluginService !== null
         function onPluginDataChanged(changedPluginId) {
             if (changedPluginId === "aiQuotas")
-                Qt.callLater(root.requestFetch)
+                Qt.callLater(root.fetchIfSettingsChanged)
         }
     }
 
@@ -94,6 +119,9 @@ PluginComponent {
             if (c) root.usageData = c
         } catch (e) {}
         // PluginComponent loads pluginData after child completion; defer the first request.
-        Qt.callLater(root.requestFetch)
+        Qt.callLater(function () {
+            root.lastFetchSignature = root.fetchSignature()
+            root.requestFetch(false)
+        })
     }
 }

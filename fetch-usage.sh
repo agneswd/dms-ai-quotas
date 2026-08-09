@@ -22,6 +22,7 @@
 #   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
 #   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
 #   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
+#   AIQ_FORCE_REFRESH         "1" to bypass the cache
 #   AIQ_USAGE_MOCK            file with sample JSON (for tests)
 set -u
 
@@ -33,26 +34,14 @@ agy_enabled="${AIQ_ANTIGRAVITY_ENABLED:-1}"
 grok_enabled="${AIQ_GROK_ENABLED:-1}"
 cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/usage.json}"
 ttl="${AIQ_CACHE_TTL:-55}"
+force_refresh="${AIQ_FORCE_REFRESH:-0}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null
 now=$(date +%s)
 
-if [ -s "$cache" ]; then
+if [ "$force_refresh" != "1" ] && [ -s "$cache" ]; then
     prev=$(jq -r '.captured_at // 0' "$cache" 2>/dev/null)
     case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
-    cache_usable=1
-    if [ "$claude_enabled" = "1" ] && ! jq -e 'has("claude")' "$cache" >/dev/null 2>&1; then
-        cache_usable=0
-    fi
-    if [ "$codex_enabled" = "1" ] && ! jq -e 'has("codex")' "$cache" >/dev/null 2>&1; then
-        cache_usable=0
-    fi
-    if [ "$agy_enabled" = "1" ] && ! jq -e 'has("antigravity")' "$cache" >/dev/null 2>&1; then
-        cache_usable=0
-    fi
-    if [ "$grok_enabled" = "1" ] && ! jq -e 'has("grok")' "$cache" >/dev/null 2>&1; then
-        cache_usable=0
-    fi
-    if [ "$prev" -gt 0 ] && [ $((now - prev)) -lt "$ttl" ] && [ "$cache_usable" = "1" ]; then
+    if [ "$prev" -gt 0 ] && [ $((now - prev)) -lt "$ttl" ]; then
         cat "$cache"
         exit 0
     fi
