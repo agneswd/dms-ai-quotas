@@ -44,6 +44,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
 - For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
+- For Antigravity: `secret-tool` and an authenticated Antigravity CLI (`agy`)
 
 ## Install
 
@@ -114,13 +115,13 @@ Claude Code provides quota data after the first response in a session. If you al
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads the local Antigravity quota files from `~/.antigravity_cockpit/cache/quota_history/`, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native status data          ---> local usage snapshot --------------\
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
 curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
-Local quota files                  ---> ~/.antigravity_cockpit/...          ----> fetch-usage.sh ---> cache ---> Widget
+System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
 Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
 ```

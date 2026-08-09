@@ -87,7 +87,7 @@ PluginComponent {
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit"] }
+        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
     }
 
     function savedSetting(key, fallback) {
