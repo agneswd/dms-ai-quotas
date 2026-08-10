@@ -1,0 +1,10 @@
+module dms.common
+DankSliderPlus 1.0 DankSliderPlus.qml
+NumericText 1.0 NumericText.qml
+SectionTitle 1.0 SectionTitle.qml
+SelectionSettingPlus 1.0 SelectionSettingPlus.qml
+Separator 1.0 Separator.qml
+SettingsCard 1.0 SettingsCard.qml
+SliderSettingPlus 1.0 SliderSettingPlus.qml
+StringSettingPlus 1.0 StringSettingPlus.qml
+ToggleSettingPlus 1.0 ToggleSettingPlus.qml
