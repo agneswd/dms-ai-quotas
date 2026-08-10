@@ -129,3 +129,5 @@ Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
 ## License
 
 MIT
+
+The settings UI uses selected components from [dms-common](https://github.com/hthienloc/dms-common) by Loc Huynh.
