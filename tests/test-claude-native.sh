@@ -14,6 +14,7 @@ count=0
 [ ! -f "$CURL_COUNT_FILE" ] || count=$(cat "$CURL_COUNT_FILE")
 printf '%s\n' $((count + 1)) > "$CURL_COUNT_FILE"
 while [ "$#" -gt 0 ]; do
+    case "$1" in *test*) exit 1 ;; esac
     if [ "$1" = "-D" ]; then
         shift
         headers=$1

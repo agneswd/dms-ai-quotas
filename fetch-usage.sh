@@ -98,8 +98,10 @@ if [ "$claude_enabled" = "1" ]; then
        [ $((now - claude_checked)) -ge 300 ] &&
        [ "$now" -ge "$claude_retry" ]; then
         claude_headers=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-headers.XXXXXX")
+        claude_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-auth.XXXXXX")
+        printf 'Authorization: Bearer %s\n' "$access_token" > "$claude_auth"
         claude_response=$(curl -s -m 15 -D "$claude_headers" -w '\n%{http_code}' \
-            -H "Authorization: Bearer $access_token" \
+            -H "@$claude_auth" \
             -H "Accept: application/json" \
             -H "anthropic-beta: oauth-2025-04-20" \
             -H "User-Agent: dms-ai-quotas" \
@@ -159,7 +161,7 @@ if [ "$claude_enabled" = "1" ]; then
                 [ "$claude_retry_at" -gt "$now" ] || claude_retry_at=$((now + 3600))
                 ;;
         esac
-        rm -f "$claude_headers"
+        rm -f "$claude_headers" "$claude_auth"
 
         fallback_tmp=$(mktemp "$(dirname "$claude_fallback_state")/.claude-fallback.XXXXXX")
         jq -n -c --argjson checked "$now" --argjson retry "$claude_retry_at" \
@@ -178,7 +180,7 @@ if [ "$claude_enabled" = "1" ]; then
                 plan: $plan,
                 source: (.source // "native"),
                 capturedAt: ($captured // 0),
-                stale: (($now - ($captured // 0)) >= 600),
+                stale: (($now - ($captured // 0)) >= 300),
                 entries: .entries
               }
         ' "$claude_usage" 2>/dev/null)
