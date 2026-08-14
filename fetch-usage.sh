@@ -156,6 +156,7 @@ if [ "$claude_enabled" = "1" ]; then
                     *[!0-9]*) claude_retry_at=$(date -d "$retry_after" +%s 2>/dev/null || printf '%s' $((now + 3600))) ;;
                     *) claude_retry_at=$((now + retry_after)) ;;
                 esac
+                [ "$claude_retry_at" -gt "$now" ] || claude_retry_at=$((now + 3600))
                 ;;
         esac
         rm -f "$claude_headers"
@@ -166,7 +167,9 @@ if [ "$claude_enabled" = "1" ]; then
             mv "$fallback_tmp" "$claude_fallback_state"
     fi
 
-    if [ -s "$claude_usage" ]; then
+    if [ -n "$claude_error" ]; then
+        claude_data="$claude_error"
+    elif [ -s "$claude_usage" ]; then
         claude_data=$(jq -c --arg plan "$claude_plan" --argjson now "$now" '
             select((.entries | type) == "array" and (.entries | length) > 0)
             | ((.captured_at | tonumber?) // 0) as $captured
@@ -180,8 +183,6 @@ if [ "$claude_enabled" = "1" ]; then
               }
         ' "$claude_usage" 2>/dev/null)
         [ -n "$claude_data" ] || claude_data='{"status":"error","error":"Could not parse Claude usage data"}'
-    elif [ -n "$claude_error" ]; then
-        claude_data="$claude_error"
     elif [ -n "$access_token" ]; then
         claude_data='{"status":"unavailable","reason":"usage_pending","error":"Claude usage data is not available yet. Send a Claude Code message, then refresh AI Quotas."}'
     else

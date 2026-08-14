@@ -20,13 +20,24 @@ while [ "$#" -gt 0 ]; do
     fi
     shift
 done
-if [ "${CURL_MODE:-success}" = "429" ]; then
-    printf 'HTTP/2 429\r\nRetry-After: 600\r\n\r\n' > "$headers"
-    printf '\n429\n'
-else
-    printf 'HTTP/2 200\r\n\r\n' > "$headers"
-    printf '%s\n200\n' '{"five_hour":{"utilization":41,"resets_at":"2030-01-01T00:00:00Z"},"seven_day":{"utilization":9,"resets_at":"2030-01-02T00:00:00Z"},"extra_usage":{"utilization":50}}'
-fi
+case "${CURL_MODE:-success}" in
+    401)
+        printf 'HTTP/2 401\r\n\r\n' > "$headers"
+        printf '\n401\n'
+        ;;
+    429)
+        printf 'HTTP/2 429\r\nRetry-After: 600\r\n\r\n' > "$headers"
+        printf '\n429\n'
+        ;;
+    past-429)
+        printf 'HTTP/2 429\r\nRetry-After: Wed, 21 Oct 2015 07:28:00 GMT\r\n\r\n' > "$headers"
+        printf '\n429\n'
+        ;;
+    *)
+        printf 'HTTP/2 200\r\n\r\n' > "$headers"
+        printf '%s\n200\n' '{"five_hour":{"utilization":41,"resets_at":"2030-01-01T00:00:00Z"},"seven_day":{"utilization":9,"resets_at":"2030-01-02T00:00:00Z"},"extra_usage":{"utilization":50}}'
+        ;;
+esac
 EOF
 chmod +x "$test_dir/bin/curl"
 
@@ -80,9 +91,16 @@ CURL_MODE=429 run_fetch >/dev/null
 [ "$(cat "$test_dir/curl-count")" = "2" ]
 jq -e --argjson now "$now" '.retry_at > $now' "$test_dir/claude-fallback.json" >/dev/null
 
+rm -f "$test_dir/claude-fallback.json"
+CURL_MODE=past-429 run_fetch >/dev/null
+jq -e --argjson now "$now" '.retry_at >= ($now + 3600)' "$test_dir/claude-fallback.json" >/dev/null
+
+rm -f "$test_dir/claude-fallback.json"
+CURL_MODE=401 run_fetch | jq -e '.claude.reason == "auth_expired"' >/dev/null
+
 rm -f "$test_dir/claude-usage.json"
 rm -f "$test_dir/claude-fallback.json"
-run_fetch | jq -e '.claude.reason == "usage_pending"' >/dev/null
+CURL_MODE=429 run_fetch | jq -e '.claude.reason == "usage_pending"' >/dev/null
 rm -f "$test_dir/claude/.credentials.json"
 run_fetch | jq -e '.claude.reason == "not_authenticated"' >/dev/null
 
