@@ -13,6 +13,7 @@
 #   CACHE_FILE                cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
 #   CLAUDE_CONFIG_DIR         Claude Code config directory (default $HOME/.claude)
 #   CLAUDE_USAGE_FILE         native Claude usage snapshot
+#   CLAUDE_FALLBACK_STATE_FILE fallback poll state
 #   CODEX_HOME                Codex home directory (default $HOME/.codex)
 #   GROK_HOME                 Grok home directory (default $HOME/.grok)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
@@ -54,12 +55,13 @@ if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
 fi
 
 # ============================================================
-# Claude plan usage from native Claude Code status data
+# Claude plan usage from native status data with a five-minute API fallback
 # ============================================================
 claude_data='{"status":"unavailable"}'
 if [ "$claude_enabled" = "1" ]; then
     claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
     claude_creds="$claude_home/.credentials.json"
+    access_token=$(jq -r '.claudeAiOauth.accessToken // empty' "$claude_creds" 2>/dev/null)
     sub_type=$(jq -r '.claudeAiOauth.subscriptionType // empty' "$claude_creds" 2>/dev/null)
     rate_tier=$(jq -r '.claudeAiOauth.rateLimitTier // empty' "$claude_creds" 2>/dev/null)
 
@@ -81,7 +83,93 @@ if [ "$claude_enabled" = "1" ]; then
 
     claude_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas"
     claude_usage="${CLAUDE_USAGE_FILE:-$claude_cache_dir/claude-native.json}"
-    mkdir -p "$(dirname "$claude_usage")" 2>/dev/null
+    claude_fallback_state="${CLAUDE_FALLBACK_STATE_FILE:-$claude_cache_dir/claude-fallback.json}"
+    mkdir -p "$(dirname "$claude_usage")" "$(dirname "$claude_fallback_state")" 2>/dev/null
+    claude_captured=$(jq -r '.captured_at // 0' "$claude_usage" 2>/dev/null)
+    claude_checked=$(jq -r '.checked_at // 0' "$claude_fallback_state" 2>/dev/null)
+    claude_retry=$(jq -r '.retry_at // 0' "$claude_fallback_state" 2>/dev/null)
+    case "$claude_captured" in ''|*[!0-9]*) claude_captured=0 ;; esac
+    case "$claude_checked" in ''|*[!0-9]*) claude_checked=0 ;; esac
+    case "$claude_retry" in ''|*[!0-9]*) claude_retry=0 ;; esac
+
+    claude_error=""
+    if [ -n "$access_token" ] &&
+       [ $((now - claude_captured)) -ge 300 ] &&
+       [ $((now - claude_checked)) -ge 300 ] &&
+       [ "$now" -ge "$claude_retry" ]; then
+        claude_headers=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-headers.XXXXXX")
+        claude_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-auth.XXXXXX")
+        trap 'rm -f "$claude_headers" "$claude_auth"' EXIT HUP INT TERM
+        printf 'Authorization: Bearer %s\n' "$access_token" > "$claude_auth"
+        claude_response=$(curl -s -m 15 -D "$claude_headers" -w '\n%{http_code}' \
+            -H "@$claude_auth" \
+            -H "Accept: application/json" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: dms-ai-quotas" \
+            https://api.anthropic.com/api/oauth/usage 2>/dev/null)
+        claude_http_code=$(printf '%s\n' "$claude_response" | tail -n 1)
+        claude_body=$(printf '%s\n' "$claude_response" | sed '$d')
+        claude_retry_at=0
+
+        case "$claude_http_code" in
+            2??)
+                claude_snapshot=$(printf '%s' "$claude_body" | jq -c --argjson now "$now" '
+                    def number:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // 0)
+                        else 0
+                        end;
+                    def timestamp:
+                        if type == "number" then .
+                        elif type == "string" then
+                            (sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | fromdateiso8601?) // 0
+                        else 0
+                        end;
+                    [
+                        {name: "5h", window: .five_hour},
+                        {name: "Weekly", window: .seven_day}
+                    ]
+                    | map(select(.window.utilization != null))
+                    | map({
+                        name: .name,
+                        percentUsed: ([((.window.utilization | number)), 0] | max | [., 100] | min),
+                        resetAt: (.window.resets_at | timestamp)
+                    })
+                    | if length == 0 then error("no quota windows")
+                      else {captured_at: $now, source: "oauth", entries: .}
+                      end
+                ' 2>/dev/null) || claude_snapshot=""
+                if [ -n "$claude_snapshot" ]; then
+                    claude_tmp=$(mktemp "$(dirname "$claude_usage")/.claude-usage.XXXXXX")
+                    printf '%s\n' "$claude_snapshot" > "$claude_tmp" && mv "$claude_tmp" "$claude_usage"
+                else
+                    claude_error='{"status":"error","error":"Could not parse Claude usage response"}'
+                fi
+                ;;
+            401)
+                claude_error='{"status":"error","reason":"auth_expired","error":"Claude login expired. Start Claude Code to refresh it, then refresh AI Quotas."}'
+                ;;
+            403)
+                claude_error='{"status":"error","reason":"access_denied","error":"Claude usage access was denied for this account."}'
+                ;;
+            429)
+                retry_after=$(sed -n 's/^[Rr]etry-[Aa]fter:[[:space:]]*//p' "$claude_headers" | tr -d '\r' | tail -n 1)
+                case "$retry_after" in
+                    '') claude_retry_at=$((now + 3600)) ;;
+                    *[!0-9]*) claude_retry_at=$(date -d "$retry_after" +%s 2>/dev/null || printf '%s' $((now + 3600))) ;;
+                    *) claude_retry_at=$((now + retry_after)) ;;
+                esac
+                [ "$claude_retry_at" -gt "$now" ] || claude_retry_at=$((now + 3600))
+                ;;
+        esac
+        rm -f "$claude_headers" "$claude_auth"
+        trap - EXIT HUP INT TERM
+
+        fallback_tmp=$(mktemp "$(dirname "$claude_fallback_state")/.claude-fallback.XXXXXX")
+        jq -n -c --argjson checked "$now" --argjson retry "$claude_retry_at" \
+            '{checked_at: $checked, retry_at: $retry}' > "$fallback_tmp" &&
+            mv "$fallback_tmp" "$claude_fallback_state"
+    fi
 
     if [ -s "$claude_usage" ]; then
         claude_data=$(jq -c --arg plan "$claude_plan" --argjson now "$now" '
@@ -90,14 +178,16 @@ if [ "$claude_enabled" = "1" ]; then
             | {
                 status: "ok",
                 plan: $plan,
-                source: "native",
+                source: (.source // "native"),
                 capturedAt: ($captured // 0),
-                stale: (($now - ($captured // 0)) >= 600),
+                stale: (($now - ($captured // 0)) >= 300),
                 entries: .entries
               }
         ' "$claude_usage" 2>/dev/null)
         [ -n "$claude_data" ] || claude_data='{"status":"error","error":"Could not parse Claude usage data"}'
-    elif jq -e '.claudeAiOauth.accessToken | strings | length > 0' "$claude_creds" >/dev/null 2>&1; then
+    elif [ -n "$claude_error" ]; then
+        claude_data="$claude_error"
+    elif [ -n "$access_token" ]; then
         claude_data='{"status":"unavailable","reason":"usage_pending","error":"Claude usage data is not available yet. Send a Claude Code message, then refresh AI Quotas."}'
     else
         claude_data='{"status":"unavailable","reason":"not_authenticated","error":"Claude is not logged in. Run claude in a terminal and sign in, then refresh AI Quotas."}'
