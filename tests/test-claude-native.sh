@@ -97,9 +97,9 @@ CURL_MODE=past-429 run_fetch >/dev/null
 jq -e --argjson now "$now" '.retry_at >= ($now + 3600)' "$test_dir/claude-fallback.json" >/dev/null
 
 rm -f "$test_dir/claude-fallback.json"
+rm -f "$test_dir/claude-usage.json"
 CURL_MODE=401 run_fetch | jq -e '.claude.reason == "auth_expired"' >/dev/null
 
-rm -f "$test_dir/claude-usage.json"
 rm -f "$test_dir/claude-fallback.json"
 CURL_MODE=429 run_fetch | jq -e '.claude.reason == "usage_pending"' >/dev/null
 rm -f "$test_dir/claude/.credentials.json"

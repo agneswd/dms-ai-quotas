@@ -99,6 +99,7 @@ if [ "$claude_enabled" = "1" ]; then
        [ "$now" -ge "$claude_retry" ]; then
         claude_headers=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-headers.XXXXXX")
         claude_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-auth.XXXXXX")
+        trap 'rm -f "$claude_headers" "$claude_auth"' EXIT HUP INT TERM
         printf 'Authorization: Bearer %s\n' "$access_token" > "$claude_auth"
         claude_response=$(curl -s -m 15 -D "$claude_headers" -w '\n%{http_code}' \
             -H "@$claude_auth" \
@@ -162,6 +163,7 @@ if [ "$claude_enabled" = "1" ]; then
                 ;;
         esac
         rm -f "$claude_headers" "$claude_auth"
+        trap - EXIT HUP INT TERM
 
         fallback_tmp=$(mktemp "$(dirname "$claude_fallback_state")/.claude-fallback.XXXXXX")
         jq -n -c --argjson checked "$now" --argjson retry "$claude_retry_at" \
@@ -169,9 +171,7 @@ if [ "$claude_enabled" = "1" ]; then
             mv "$fallback_tmp" "$claude_fallback_state"
     fi
 
-    if [ -n "$claude_error" ]; then
-        claude_data="$claude_error"
-    elif [ -s "$claude_usage" ]; then
+    if [ -s "$claude_usage" ]; then
         claude_data=$(jq -c --arg plan "$claude_plan" --argjson now "$now" '
             select((.entries | type) == "array" and (.entries | length) > 0)
             | ((.captured_at | tonumber?) // 0) as $captured
@@ -185,6 +185,8 @@ if [ "$claude_enabled" = "1" ]; then
               }
         ' "$claude_usage" 2>/dev/null)
         [ -n "$claude_data" ] || claude_data='{"status":"error","error":"Could not parse Claude usage data"}'
+    elif [ -n "$claude_error" ]; then
+        claude_data="$claude_error"
     elif [ -n "$access_token" ]; then
         claude_data='{"status":"unavailable","reason":"usage_pending","error":"Claude usage data is not available yet. Send a Claude Code message, then refresh AI Quotas."}'
     else
