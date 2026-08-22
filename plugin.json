@@ -2,7 +2,7 @@
   "$schema": "https://github.com/AvengeMedia/DankMaterialShell/raw/refs/heads/master/PLUGINS/plugin-schema.json",
   "id": "aiQuotas",
   "name": "AI Quotas",
-  "description": "Claude, Codex, OpenCode, and Antigravity usage limits plus DeepSeek balance and Grok billing quotas in your bar.",
+  "description": "Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, and Grok usage limits and balances in your bar.",
   "version": "1.7.0",
   "author": "agneswd",
   "license": "MIT",

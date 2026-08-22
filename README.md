@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Claude plan usage, Codex, OpenCode Go, Antigravity model quotas, DeepSeek API balance, and Grok billing quotas in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
