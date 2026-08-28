@@ -50,3 +50,12 @@ run_fetch '{}' 403 | jq -e \
 run_fetch '{"message":"management key required"}' 500 | jq -e \
     '.openrouter.status == "error" and .openrouter.reason == "http_error"' \
     >/dev/null
+
+run_fetch '{}' 000 | jq -e \
+    '.openrouter.status == "error" and .openrouter.reason == "network"' \
+    >/dev/null
+
+run_fetch '{"error":"bad shape"}' | jq -e \
+    '.openrouter.status == "error"
+     and .openrouter.error == "Could not parse OpenRouter credits response"' \
+    >/dev/null

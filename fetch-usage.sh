@@ -5,7 +5,7 @@
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
-# OpenRouter: GET https://openrouter.ai/api/v1/credits (management key)
+# OpenRouter: GET https://openrouter.ai/api/v1/credits
 # Grok: billing usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
@@ -22,7 +22,7 @@
 #   AIQ_OPENROUTER_ENABLED    "1" to fetch OpenRouter (default: "1")
 #   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
-#   OPENROUTER_API_KEY        OpenRouter management API key
+#   OPENROUTER_API_KEY        OpenRouter API key (management key only if credits are denied)
 #   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
 #   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
 #   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
@@ -415,8 +415,9 @@ if [ "$or_enabled" = "1" ]; then
                         elif type == "string" then (tonumber? // 0)
                         else 0
                         end;
-                    (.data.total_credits | number) as $purchased |
-                    (.data.total_usage | number) as $used |
+                    (.data // error("no credit data")) as $d |
+                    ($d.total_credits | number) as $purchased |
+                    ($d.total_usage | number) as $used |
                     {
                         status: "ok",
                         balances: [{
