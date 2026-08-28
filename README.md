@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, OpenRouter, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
@@ -15,13 +15,14 @@ Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, and Grok usage limits an
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
 | **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
 | **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
+| **OpenRouter** | Account credit balance | Remaining credits, purchased total, and usage |
 | **Grok** | Billing usage | Shared plan usage or on-demand spending-cap usage from local `grok login` |
 
 The plugin is designed to be extensible - additional AI coding providers can be added in the future.
 
 ## Features
 
-- Merged bar pill showing provider logos, pinned percentages, and DeepSeek API balance
+- Merged bar pill showing provider logos, pinned percentages, and DeepSeek and OpenRouter balances
 - Claude, Codex, OpenCode, and Grok pinned percentages in the bar pill, with all supported limits in the popout
 - Separators between provider sections in the pill
 - Click to open a tabbed provider popout with clean per-limit detail cards
@@ -29,6 +30,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
 - Reset date/time or countdown shown for each usage limit
 - DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
+- OpenRouter credit balance card with remaining, purchased, and used amounts, and logo
 - Grok billing usage card from local `grok login` (no API key)
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
@@ -41,6 +43,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - `curl` and `jq`
 - For Claude: Claude Code 2.1.220 or newer, installed and signed in (`claude`)
 - For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
+- For OpenRouter: an API key from [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). If credit access is denied, create a management key at [openrouter.ai/settings/management-keys](https://openrouter.ai/settings/management-keys)
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
 - For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
@@ -71,6 +74,7 @@ Then in DMS:
 | OpenCode | on | Show OpenCode usage quotas |
 | Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
+| OpenRouter | on | Show OpenRouter credit balance |
 | Grok | on | Show billing usage from the local Grok login |
 | Refresh Interval | 60s | How often to fetch data (30-300s) |
 | Show Reset Times | on | Show reset information in the popout |
@@ -86,6 +90,7 @@ Claude, Codex and Grok use their local CLI logins automatically. Sign in once wi
 | Setting | Description |
 |---------|-------------|
 | DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
+| OpenRouter API Key | Your OpenRouter API key from openrouter.ai/settings/keys |
 | OpenCode Workspace ID | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
 | OpenCode Auth Cookie | The `auth` cookie from opencode.ai |
 
@@ -115,7 +120,7 @@ Claude Code provides quota data after the first response in a session. If you al
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with a management key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native data + 5m fallback   ---> local usage snapshot --------------\
@@ -123,6 +128,7 @@ Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
 curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
 System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
+openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --/
 Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
 ```
 
