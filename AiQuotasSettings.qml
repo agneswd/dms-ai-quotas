@@ -11,12 +11,13 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || deepSeekEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
                 openCodeEnabled.resetToDefault()
                 deepSeekEnabled.resetToDefault()
+                openRouterEnabled.resetToDefault()
                 grokEnabled.resetToDefault()
                 antigravityEnabled.resetToDefault()
             }
@@ -57,6 +58,16 @@ PluginSettings {
             settingKey: "deepSeekEnabled"
             label: I18n.tr("DeepSeek API")
             description: I18n.tr("Show your DeepSeek API account balance.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: openRouterEnabled
+            settingKey: "openRouterEnabled"
+            label: I18n.tr("OpenRouter")
+            description: I18n.tr("Show your OpenRouter account credit balance.")
             defaultValue: true
         }
 
@@ -146,9 +157,10 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openCodeWorkspaceId.isDirty || openCodeAuthCookie.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeWorkspaceId.isDirty || openCodeAuthCookie.isDirty
             onResetClicked: {
                 deepSeekApiKey.resetToDefault()
+                openRouterApiKey.resetToDefault()
                 openCodeWorkspaceId.resetToDefault()
                 openCodeAuthCookie.resetToDefault()
             }
@@ -160,6 +172,17 @@ PluginSettings {
             label: I18n.tr("DeepSeek API Key")
             description: I18n.tr("Get this from platform.deepseek.com/api_keys.")
             placeholder: "sk-..."
+            defaultValue: ""
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: openRouterApiKey
+            settingKey: "openRouterApiKey"
+            label: I18n.tr("OpenRouter API Key")
+            description: I18n.tr("Your API key from openrouter.ai/settings/keys.")
+            placeholder: "sk-or-..."
             defaultValue: ""
         }
 

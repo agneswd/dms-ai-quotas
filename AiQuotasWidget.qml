@@ -12,9 +12,11 @@ PluginComponent {
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
+    property bool openRouterEnabled: pluginData.openRouterEnabled !== false
     property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
+    property string openRouterApiKey: pluginData.openRouterApiKey || ""
     property string displayMode: pluginData.displayMode || "remaining"
     property bool showResetTime: pluginData.showResetTime !== false
     property bool showResetCountdown: pluginData.showResetCountdown === true
@@ -77,11 +79,11 @@ PluginComponent {
         }
     }
 
-    readonly property var providerIds: ["claude", "codex", "opencode", "deepseek", "grok", "antigravity"]
+    readonly property var providerIds: ["claude", "codex", "opencode", "deepseek", "openrouter", "grok", "antigravity"]
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
+        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], openrouter: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
     }
 
     function savedSetting(key, fallback) {
@@ -153,12 +155,14 @@ PluginComponent {
     function pinnedGrokEntries() { return pinnedEntries("grok", grokEntries()) }
     function pinnedAntigravityEntries() { return pinnedEntries("antigravity", antigravityEntries()) }
     function deepSeekPinned() { return isPinned("deepseek", "balance") }
+    function openRouterPinned() { return isPinned("openrouter", "balance") }
 
     function providerEnabled(provider) {
         if (provider === "claude") return claudeEnabled
         if (provider === "codex") return codexEnabled
         if (provider === "opencode") return openCodeEnabled
         if (provider === "deepseek") return deepSeekEnabled
+        if (provider === "openrouter") return openRouterEnabled
         if (provider === "grok") return grokEnabled
         if (provider === "antigravity") return antigravityEnabled
         return false
@@ -170,6 +174,7 @@ PluginComponent {
         if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
         if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "assets/deepseek-logo.svg" })
+        if (openRouterEnabled) out.push({ id: "openrouter", label: "OpenRouter", icon: "assets/openrouter-logo.svg" })
         if (grokEnabled) out.push({ id: "grok", label: "Grok", icon: "assets/grok-logo.svg" })
         if (antigravityEnabled) out.push({ id: "antigravity", label: "Antigravity", icon: "assets/antigravity-logo.svg" })
         return out
@@ -241,6 +246,10 @@ PluginComponent {
         return deepSeekEnabled && deepSeekPinned() && dsBalance() != null
     }
 
+    function hasOpenRouter() {
+        return openRouterEnabled && openRouterPinned() && orBalance() != null
+    }
+
     function grokEntries() {
         try {
             if (!usageData || !usageData.grok) return []
@@ -294,6 +303,21 @@ PluginComponent {
             return usageData && usageData.deepseek && usageData.deepseek.isAvailable === false
                 ? Theme.error : Theme.primary
         } catch (e) { return Theme.surfaceVariantText }
+    }
+
+    function orBalances() {
+        try {
+            if (!usageData || !usageData.openrouter) return []
+            if (usageData.openrouter.status !== "ok") return []
+            return usageData.openrouter.balances || []
+        } catch (e) { return [] }
+    }
+
+    function orBalance() {
+        try {
+            var balances = orBalances()
+            return balances.length > 0 ? balances[0] : null
+        } catch (e) { return null }
     }
 
     function ocLabel(entry) {
@@ -497,7 +521,7 @@ PluginComponent {
 
                 // Separator after OpenCode
                 Rectangle {
-                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -529,7 +553,39 @@ PluginComponent {
 
                 // Separator after DeepSeek
                 Rectangle {
-                    visible: root.hasDeepSeek() && (root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.hasDeepSeek() && (root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // OpenRouter balance
+                Repeater {
+                    model: root.hasOpenRouter() ? [1] : []
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/openrouter-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: root.fmtBal(root.orBalance())
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after OpenRouter
+                Rectangle {
+                    visible: root.hasOpenRouter() && (root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -694,6 +750,30 @@ PluginComponent {
                         StyledText {
                             text: {
                                 var b = root.dsBalance()
+                                return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
+                            }
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.hasOpenRouter() ? [1] : []
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/openrouter-logo.svg"
+                            sourceSize.width: 14
+                            sourceSize.height: 14
+                            width: 14; height: 14
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: {
+                                var b = root.orBalance()
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
@@ -1473,6 +1553,107 @@ PluginComponent {
                                     if (d && d.error) return d.error
                                     if (root.deepSeekApiKey.length === 0) return "Set DeepSeek API key in plugin settings."
                                     return "No DeepSeek balance data."
+                                }
+                            }
+                        }
+                    }
+
+                    // --- OpenRouter card ---
+                    StyledRect {
+                        visible: root.selectedProvider === "openrouter" && root.openRouterEnabled
+                        width: parent.width
+                        height: orCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: orCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.orBalance() != null
+                                text: "OpenRouter credit balance"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            // OpenRouter balance
+                            Repeater {
+                                model: root.orBalances()
+                                delegate: Row {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    Image {
+                                        source: root.pluginDir + "assets/openrouter-logo.svg"
+                                        sourceSize.width: 28
+                                        sourceSize.height: 28
+                                        width: 28; height: 28
+                                        fillMode: Image.PreserveAspectFit
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Column {
+                                        width: parent.width - 40 - 28 - Theme.spacingM
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 2
+                                        StyledText { text: "Available balance"; color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
+                                        StyledText { text: root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeLarge; font.weight: Font.Bold }
+                                        StyledText {
+                                            visible: parseFloat(modelData.purchased) > 0
+                                            text: "Purchased: " + root.fmtMoney(modelData.purchased, modelData.currency)
+                                            color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                        StyledText {
+                                            visible: parseFloat(modelData.used) > 0
+                                            text: "Used: " + root.fmtMoney(modelData.used, modelData.currency)
+                                            color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall
+                                        }
+                                    }
+                                    Rectangle {
+                                        width: 28; height: 28; radius: 14
+                                        color: root.isPinned("openrouter", "balance")
+                                            ? Theme.surfaceSelected
+                                            : (openRouterPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                        border.color: root.isPinned("openrouter", "balance")
+                                            ? Theme.outlineMedium : Theme.outlineVariant
+                                        border.width: 1
+                                        anchors.verticalCenter: parent.verticalCenter
+
+                                        MouseArea {
+                                            id: openRouterPinArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.togglePin("openrouter", "balance")
+                                        }
+
+                                        DankIcon {
+                                            anchors.centerIn: parent
+                                            name: "push_pin"
+                                            size: 17
+                                            color: root.isPinned("openrouter", "balance")
+                                                ? Theme.primary : Theme.surfaceVariantText
+                                            rotation: root.isPinned("openrouter", "balance") ? 0 : 45
+                                        }
+                                    }
+                                }
+                            }
+
+                            // OpenRouter unavailable
+                            StyledText {
+                                visible: !root.orBalance()
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var o = root.usageData.openrouter
+                                    if (o && o.error) return o.error
+                                    if (root.openRouterApiKey.length === 0) return "Set OpenRouter API key in plugin settings."
+                                    return "No OpenRouter balance data."
                                 }
                             }
                         }
