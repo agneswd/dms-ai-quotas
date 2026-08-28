@@ -120,7 +120,7 @@ Claude Code provides quota data after the first response in a session. If you al
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with a management key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native data + 5m fallback   ---> local usage snapshot --------------\
@@ -128,7 +128,7 @@ Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
 curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
 System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
-openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --/
+openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --\
 Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
 ```
 
