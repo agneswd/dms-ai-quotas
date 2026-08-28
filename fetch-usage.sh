@@ -1,10 +1,11 @@
 #!/bin/sh
-# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek balance and Grok billing quotas, merge, cache, and print.
+# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek, OpenRouter and Grok balances, merge, cache, and print.
 #
 # Claude: reads native rate-limit data captured from Claude Code's status line
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
 # OpenCode Go: Scrapes workspace dashboard directly via curl
 # DeepSeek: GET https://api.deepseek.com/user/balance
+# OpenRouter: GET https://openrouter.ai/api/v1/credits (management key)
 # Grok: billing usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
@@ -18,8 +19,10 @@
 #   GROK_HOME                 Grok home directory (default $HOME/.grok)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
+#   AIQ_OPENROUTER_ENABLED    "1" to fetch OpenRouter (default: "1")
 #   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
+#   OPENROUTER_API_KEY        OpenRouter management API key
 #   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
 #   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
 #   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
@@ -31,6 +34,7 @@ umask 077
 claude_enabled="${AIQ_CLAUDE_ENABLED:-1}"
 oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
 ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
+or_enabled="${AIQ_OPENROUTER_ENABLED:-1}"
 codex_enabled="${AIQ_CODEX_ENABLED:-1}"
 agy_enabled="${AIQ_ANTIGRAVITY_ENABLED:-1}"
 grok_enabled="${AIQ_GROK_ENABLED:-1}"
@@ -391,6 +395,56 @@ if [ "$ds_enabled" = "1" ]; then
 fi
 
 # ============================================================
+# OpenRouter credits (management API key)
+# ============================================================
+or_data='{"status":"unavailable"}'
+if [ "$or_enabled" = "1" ]; then
+    or_key="${OPENROUTER_API_KEY:-}"
+    if [ -n "$or_key" ]; then
+        or_resp=$(curl -s -m 10 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $or_key" \
+            -H "Accept: application/json" \
+            https://openrouter.ai/api/v1/credits 2>/dev/null)
+        or_http_code=$(printf '%s\n' "$or_resp" | tail -n 1)
+        or_body=$(printf '%s\n' "$or_resp" | sed '$d')
+        case "$or_http_code" in
+            2??)
+                or_data=$(printf '%s' "$or_body" | jq -c '
+                    def number:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // 0)
+                        else 0
+                        end;
+                    (.data.total_credits | number) as $purchased |
+                    (.data.total_usage | number) as $used |
+                    {
+                        status: "ok",
+                        balances: [{
+                            currency: "USD",
+                            total: (($purchased - $used) | tostring),
+                            purchased: ($purchased | tostring),
+                            used: ($used | tostring)
+                        }]
+                    }
+                ' 2>/dev/null) || or_data='{"status":"error","error":"Could not parse OpenRouter credits response"}'
+                ;;
+            401)
+                or_data='{"status":"error","reason":"auth_expired","error":"OpenRouter rejected this API key. Check the key in plugin settings."}'
+                ;;
+            403)
+                or_data='{"status":"error","reason":"access_denied","error":"OpenRouter denied credit access for this key. Create a management key at openrouter.ai/settings/management-keys and use it in plugin settings."}'
+                ;;
+            000)
+                or_data='{"status":"error","reason":"network","error":"Could not reach the OpenRouter API. Check your connection and try again."}'
+                ;;
+            *)
+                or_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"OpenRouter API returned HTTP $or_http_code. Try again shortly.\"}"
+                ;;
+        esac
+    fi
+fi
+
+# ============================================================
 # Grok billing usage (OAuth via grok login, not API key)
 # ============================================================
 grok_data='{"status":"unavailable"}'
@@ -630,9 +684,10 @@ out=$(jq -c -n \
     --argjson codex "$codex_data" \
     --argjson oc "$oc_data" \
     --argjson ds "$ds_data" \
+    --argjson or "$or_data" \
     --argjson grok "$grok_data" \
     --argjson agy "$agy_data" \
-    '{captured_at: $now, claude: $claude, codex: $codex, opencode: $oc, deepseek: $ds, grok: $grok, antigravity: $agy}') || exit 2
+    '{captured_at: $now, claude: $claude, codex: $codex, opencode: $oc, deepseek: $ds, openrouter: $or, grok: $grok, antigravity: $agy}') || exit 2
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"
