@@ -77,7 +77,7 @@ PluginSettings {
             id: grokEnabled
             settingKey: "grokEnabled"
             label: I18n.tr("Grok")
-            description: I18n.tr("Show billing usage from your local Grok login.")
+            description: I18n.tr("Show usage limits from your local Grok login.")
             defaultValue: true
         }
 

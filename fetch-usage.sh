@@ -489,6 +489,7 @@ if [ "$grok_enabled" = "1" ]; then
                     ($c.currentPeriod.end // $c.billingPeriodEnd // null | parse_ts) as $reset |
                     ($c.onDemandCap | amount) as $cap |
                     ($c.onDemandUsed | amount) as $used |
+                    ($c.currentPeriod != null or $c.billingPeriodEnd != null) as $has_period |
                     (
                         if $c.creditUsagePercent != null then
                             [{
@@ -504,14 +505,20 @@ if [ "$grok_enabled" = "1" ]; then
                                 percentUsed: ((100 * $used / $cap) | clamp_pct),
                                 resetAt: $reset
                             }]
+                        elif $has_period then
+                            [{
+                                name: "Billing",
+                                kind: "plan",
+                                percentUsed: 0,
+                                resetAt: $reset
+                            }]
                         else []
                         end
                     ) as $entries |
                     if ($entries | length) == 0 then
                         {
                             status: "unavailable",
-                            reason: "no_quota",
-                            error: "Grok does not expose a billing quota for this account."
+                            reason: "no_quota"
                         }
                     else
                         {
@@ -521,16 +528,16 @@ if [ "$grok_enabled" = "1" ]; then
                             entries: $entries
                         }
                     end
-                ' 2>/dev/null) || grok_data='{"status":"error","error":"Could not parse Grok billing response"}'
+                ' 2>/dev/null) || grok_data='{"status":"error","error":"Could not parse Grok usage response"}'
                 ;;
             401|403)
                 grok_data='{"status":"error","reason":"auth_expired","error":"Grok login expired. Run grok login again, then refresh AI Quotas."}'
                 ;;
             000)
-                grok_data='{"status":"error","reason":"network","error":"Could not reach the Grok billing service. Check your connection and try again."}'
+                grok_data='{"status":"error","reason":"network","error":"Could not reach the Grok usage service. Check your connection and try again."}'
                 ;;
             *)
-                grok_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Grok billing service returned HTTP $grok_http_code. Try again shortly.\"}"
+                grok_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Grok usage service returned HTTP $grok_http_code. Try again shortly.\"}"
                 ;;
         esac
     else
