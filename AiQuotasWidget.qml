@@ -261,7 +261,7 @@ PluginComponent {
     function grokLabel(entry) {
         try {
             if (entry.kind === "on_demand") return "On-demand spending cap"
-            if (entry.kind === "plan") return "Plan usage"
+            if (entry.kind === "plan") return "Weekly usage limit"
             return entry.name
         } catch (e) { return "Grok plan usage" }
     }
@@ -1781,6 +1781,8 @@ PluginComponent {
                                         return "Grok is not connected.\nRun grok login in a terminal, then wait for the next refresh."
                                     if (g && g.reason === "auth_expired")
                                         return "Grok login expired.\nRun grok login again, then wait for the next refresh."
+                                    if (g && g.reason === "no_quota")
+                                        return "No Grok usage data."
                                     if (g && g.error) return g.error
                                     return "No Grok usage data."
                                 }
