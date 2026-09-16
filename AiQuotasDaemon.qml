@@ -14,10 +14,12 @@ PluginComponent {
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property bool openRouterEnabled: pluginData.openRouterEnabled !== false
+    property bool zaiEnabled: pluginData.zaiEnabled !== false
     property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openRouterApiKey: pluginData.openRouterApiKey || ""
+    property string zaiApiKey: pluginData.zaiApiKey || ""
     property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
     property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
     property string pluginDir: {
@@ -51,11 +53,13 @@ PluginComponent {
             "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
             "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
             "AIQ_OPENROUTER_ENABLED=" + (root.openRouterEnabled ? "1" : "0"),
+            "AIQ_ZAI_ENABLED=" + (root.zaiEnabled ? "1" : "0"),
             "AIQ_GROK_ENABLED=" + (root.grokEnabled ? "1" : "0"),
             "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
             "AIQ_FORCE_REFRESH=" + (root.activeForce ? "1" : "0"),
             "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
             "OPENROUTER_API_KEY=" + root.openRouterApiKey,
+            "ZAI_API_KEY=" + root.zaiApiKey,
             "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
             "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
             "sh", root.pluginDir + "fetch-usage.sh"
@@ -83,8 +87,8 @@ PluginComponent {
 
     function fetchSignature() {
         return [claudeEnabled, codexEnabled, openCodeEnabled, deepSeekEnabled,
-            openRouterEnabled, antigravityEnabled, grokEnabled, deepSeekApiKey,
-            openRouterApiKey, openCodeWorkspaceId, openCodeAuthCookie].join("\u001f")
+            openRouterEnabled, zaiEnabled, antigravityEnabled, grokEnabled, deepSeekApiKey,
+            openRouterApiKey, zaiApiKey, openCodeWorkspaceId, openCodeAuthCookie].join("\u001f")
     }
 
     function requestFetch(force) {

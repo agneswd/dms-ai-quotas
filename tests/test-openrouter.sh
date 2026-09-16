@@ -26,6 +26,7 @@ run_fetch() {
         AIQ_OPENCODE_ENABLED=0 \
         AIQ_DEEPSEEK_ENABLED=0 \
         AIQ_OPENROUTER_ENABLED=1 \
+        AIQ_ZAI_ENABLED=0 \
         AIQ_GROK_ENABLED=0 \
         AIQ_ANTIGRAVITY_ENABLED=0 \
         OPENROUTER_API_KEY=sk-or-test \
