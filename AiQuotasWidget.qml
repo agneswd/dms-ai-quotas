@@ -469,7 +469,7 @@ PluginComponent {
             Row {
                 id: hRow
                 anchors.centerIn: parent
-                spacing: Theme.spacingS
+                spacing: Theme.spacingXS
 
                 // Placeholder when nothing configured
                 StyledText {
