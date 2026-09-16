@@ -443,7 +443,7 @@ PluginComponent {
                     visible: !root.usageData
                     text: "\u2733 -"
                     color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                 }
 
                 // Claude pinned entries
@@ -462,7 +462,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -494,7 +494,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -526,7 +526,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -558,7 +558,7 @@ PluginComponent {
                         StyledText {
                             text: root.fmtBal(root.dsBalance())
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -590,7 +590,7 @@ PluginComponent {
                         StyledText {
                             text: root.fmtBal(root.orBalance())
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -622,7 +622,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -654,7 +654,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -682,7 +682,7 @@ PluginComponent {
                     visible: !root.usageData
                     text: "\u2733"
                     color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                 }
 
                 Repeater {
@@ -700,7 +700,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -721,7 +721,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -742,7 +742,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -766,7 +766,7 @@ PluginComponent {
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -790,7 +790,7 @@ PluginComponent {
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -811,7 +811,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -832,7 +832,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
