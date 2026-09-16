@@ -39,9 +39,9 @@ PluginComponent {
     }
 
     Component.onCompleted: {
+        root.loadUsageData()
         root.loadPinState()
         root.ensureSelectedProvider()
-        root.loadUsageData()
     }
 
     // PluginComponent injects pluginData after child completion during startup.
@@ -74,8 +74,10 @@ PluginComponent {
         target: root.pluginService
         enabled: root.pluginService !== null
         function onPluginStateChanged(changedPluginId) {
-            if (changedPluginId === "aiQuotas")
+            if (changedPluginId === "aiQuotas") {
                 root.loadUsageData()
+                root.loadPinState()
+            }
         }
     }
 
@@ -83,7 +85,18 @@ PluginComponent {
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], openrouter: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
+        var codexPin = "5h"
+        var availableCodexEntries = codexEntries()
+        if (availableCodexEntries.length > 0) {
+            codexPin = availableCodexEntries[0].name
+            for (var i = 0; i < availableCodexEntries.length; i++) {
+                if (availableCodexEntries[i].name === "5h") {
+                    codexPin = "5h"
+                    break
+                }
+            }
+        }
+        return { claude: ["5h"], codex: [codexPin], opencode: [openCodePin], deepseek: ["balance"], openrouter: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
     }
 
     function savedSetting(key, fallback) {
