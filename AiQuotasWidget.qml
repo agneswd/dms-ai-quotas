@@ -439,7 +439,8 @@ PluginComponent {
     function pctStr(pct) {
         try {
             if (pct < 0) return "--"
-            return displayMode === "used" ? pct + "% used" : (100 - pct) + "% remaining"
+            var shown = Math.round((displayMode === "used" ? pct : 100 - pct) * 100) / 100
+            return shown + (displayMode === "used" ? "% used" : "% remaining")
         } catch (e) { return "--" }
     }
 
