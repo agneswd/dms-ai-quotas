@@ -456,6 +456,26 @@ PluginComponent {
         } catch (e) { return 0 }
     }
 
+    function providerExhausted(provider) {
+        var entries = []
+        if (provider === "claude") entries = claudeEntries()
+        else if (provider === "codex") entries = codexEntries()
+        else if (provider === "opencode") entries = ocEntries()
+        else if (provider === "zai") entries = zaiEntries()
+        else return false
+        var blocking = (provider === "codex" || provider === "zai") ? ["5h", "Weekly"] : null
+        for (var i = 0; i < entries.length; i++) {
+            if (blocking && blocking.indexOf(entries[i].name) < 0) continue
+            if ((entries[i].percentUsed || 0) >= 100) return true
+        }
+        return false
+    }
+
+    function pillPct(provider, entry) {
+        if (providerExhausted(provider)) return 100
+        return entry.percentUsed || 0
+    }
+
     // --- Bar Pills ---
 
     horizontalBarPill: Component {
@@ -493,7 +513,7 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("claude", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
@@ -525,7 +545,7 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("codex", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
@@ -557,7 +577,7 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("opencode", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
@@ -589,7 +609,7 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("zai", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
@@ -763,7 +783,7 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("claude", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -784,7 +804,7 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("codex", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -805,7 +825,7 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("opencode", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -826,7 +846,7 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("zai", modelData))) + "%"
                             color: Theme.surfaceText
                             font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
