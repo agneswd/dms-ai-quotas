@@ -168,13 +168,12 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || zaiApiKey.isDirty || openCodeWorkspaceId.isDirty || openCodeAuthCookie.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || zaiApiKey.isDirty || openCodeApiKey.isDirty
             onResetClicked: {
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
                 zaiApiKey.resetToDefault()
-                openCodeWorkspaceId.resetToDefault()
-                openCodeAuthCookie.resetToDefault()
+                openCodeApiKey.resetToDefault()
             }
         }
 
@@ -212,22 +211,11 @@ PluginSettings {
         Separator {}
 
         StringSettingPlus {
-            id: openCodeWorkspaceId
-            settingKey: "openCodeWorkspaceId"
-            label: I18n.tr("OpenCode Workspace ID")
-            description: I18n.tr("Find this in your opencode.ai workspace URL.")
-            placeholder: "wrk_..."
-            defaultValue: ""
-        }
-
-        Separator {}
-
-        StringSettingPlus {
-            id: openCodeAuthCookie
-            settingKey: "openCodeAuthCookie"
-            label: I18n.tr("OpenCode Auth Cookie")
-            description: I18n.tr("Copy the auth cookie from your browser's application storage.")
-            placeholder: I18n.tr("Paste your auth cookie")
+            id: openCodeApiKey
+            settingKey: "openCodeApiKey"
+            label: I18n.tr("OpenCode Go API Key")
+            description: I18n.tr("Optional. Leave empty to reuse the key from your local opencode login. Get one at opencode.ai/auth.")
+            placeholder: "sk-..."
             defaultValue: ""
         }
     }

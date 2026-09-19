@@ -47,7 +47,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - For OpenRouter: an API key from [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). If credit access is denied, create a management key at [openrouter.ai/settings/management-keys](https://openrouter.ai/settings/management-keys)
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
-- For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
+- For OpenCode: an OpenCode Go subscription; the key from your local opencode login is reused automatically, or paste one in plugin settings
 - For Z.ai: the Coding Plan key configured as `ANTHROPIC_AUTH_TOKEN` in your coding agent
 - For Antigravity: `secret-tool` and an authenticated Antigravity CLI (`agy`)
 
@@ -95,8 +95,7 @@ Claude, Codex and Grok use their local CLI logins automatically. Sign in once wi
 | DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
 | OpenRouter API Key | Your OpenRouter API key from openrouter.ai/settings/keys |
 | Z.ai Coding Plan Key | The key configured as `ANTHROPIC_AUTH_TOKEN` for your Coding Plan |
-| OpenCode Workspace ID | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
-| OpenCode Auth Cookie | The `auth` cookie from opencode.ai |
+| OpenCode Go API Key | Optional. Reuses the `opencode-go` key from your local opencode login (`~/.local/share/opencode/auth.json`) when empty |
 
 ### Enable Claude quota capture
 
@@ -113,23 +112,20 @@ Add the plugin's capture script as your Claude Code status line in `~/.claude/se
 
 Claude Code provides quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into that script instead of replacing it.
 
-## How to get OpenCode credentials
+## OpenCode Go
 
-1. Open [opencode.ai](https://opencode.ai) in your browser and sign in
-2. Navigate to your workspace (e.g. `opencode.ai/workspace/wrk_abc123/go`)
-3. Copy `wrk_abc123` from the URL - that's your **Workspace ID**
-4. Open browser dev tools (F12) -> Application -> Cookies -> `opencode.ai`
-5. Copy the `auth` cookie value - that's your **Auth Cookie**
-6. Paste both into DMS Settings -> AI Quotas
+OpenCode Go usage comes from `GET https://opencode.ai/zen/go/v1/usage` using your OpenCode Go API key. The plugin locates the key at `~/.local/share/opencode/auth.json` (honoring `$XDG_DATA_HOME` and `$OPENCODE_DATA_DIR`), so no setup is needed after signing in with opencode. To use a different key, paste it into DMS Settings -> AI Quotas -> OpenCode Go API Key.
+
+No workspace ID or browser cookie is required.
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, queries Z.ai Coding Plan quotas with its plan key, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, queries the OpenCode Go usage endpoint with the local `opencode-go` API key, queries Z.ai Coding Plan quotas with its plan key, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native data + 5m fallback   ---> local usage snapshot --------------\
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
-curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
+opencode auth.json                 ---> opencode.ai/zen/go/v1/usage         --\
 Z.ai Coding Plan key               ---> api.z.ai/api/monitor/usage         --\
 System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\

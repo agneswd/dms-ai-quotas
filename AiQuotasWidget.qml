@@ -1691,7 +1691,7 @@ PluginComponent {
                                     if (!root.usageData) return "Loading..."
                                     var o = root.usageData.opencode
                                     if (o && o.error) return o.error
-                                    if (o && o.status === "unavailable") return "Set OpenCode credentials in plugin settings."
+                                    if (o && o.status === "unavailable") return "Sign in with opencode or set an OpenCode Go API key in plugin settings."
                                     return "No OpenCode data."
                                 }
                             }
