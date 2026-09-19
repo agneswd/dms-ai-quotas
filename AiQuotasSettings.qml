@@ -11,13 +11,14 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || zaiEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
                 openCodeEnabled.resetToDefault()
                 deepSeekEnabled.resetToDefault()
                 openRouterEnabled.resetToDefault()
+                zaiEnabled.resetToDefault()
                 grokEnabled.resetToDefault()
                 antigravityEnabled.resetToDefault()
             }
@@ -48,6 +49,16 @@ PluginSettings {
             settingKey: "openCodeEnabled"
             label: I18n.tr("OpenCode Go")
             description: I18n.tr("Show OpenCode Go usage quotas.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: zaiEnabled
+            settingKey: "zaiEnabled"
+            label: I18n.tr("Z.ai Coding Plan")
+            description: I18n.tr("Show your Z.ai Coding Plan usage quotas.")
             defaultValue: true
         }
 
@@ -157,12 +168,12 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeWorkspaceId.isDirty || openCodeAuthCookie.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || zaiApiKey.isDirty || openCodeApiKey.isDirty
             onResetClicked: {
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
-                openCodeWorkspaceId.resetToDefault()
-                openCodeAuthCookie.resetToDefault()
+                zaiApiKey.resetToDefault()
+                openCodeApiKey.resetToDefault()
             }
         }
 
@@ -189,22 +200,22 @@ PluginSettings {
         Separator {}
 
         StringSettingPlus {
-            id: openCodeWorkspaceId
-            settingKey: "openCodeWorkspaceId"
-            label: I18n.tr("OpenCode Workspace ID")
-            description: I18n.tr("Find this in your opencode.ai workspace URL.")
-            placeholder: "wrk_..."
+            id: zaiApiKey
+            settingKey: "zaiApiKey"
+            label: I18n.tr("Z.ai Coding Plan Key")
+            description: I18n.tr("Use the API key configured as ANTHROPIC_AUTH_TOKEN for your Coding Plan.")
+            placeholder: I18n.tr("Paste your Coding Plan key")
             defaultValue: ""
         }
 
         Separator {}
 
         StringSettingPlus {
-            id: openCodeAuthCookie
-            settingKey: "openCodeAuthCookie"
-            label: I18n.tr("OpenCode Auth Cookie")
-            description: I18n.tr("Copy the auth cookie from your browser's application storage.")
-            placeholder: I18n.tr("Paste your auth cookie")
+            id: openCodeApiKey
+            settingKey: "openCodeApiKey"
+            label: I18n.tr("OpenCode Go API Key")
+            description: I18n.tr("Optional. Leave empty to reuse the key from your local opencode login. Get one at opencode.ai/auth.")
+            placeholder: "sk-..."
             defaultValue: ""
         }
     }

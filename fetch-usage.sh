@@ -1,11 +1,12 @@
 #!/bin/sh
-# Fetch Claude, Codex and OpenCode Go usage plus DeepSeek, OpenRouter and Grok balances, merge, cache, and print.
+# Fetch AI provider usage and balances, merge, cache, and print.
 #
 # Claude: reads native rate-limit data captured from Claude Code's status line
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
-# OpenCode Go: Scrapes workspace dashboard directly via curl
+# OpenCode Go: GET https://opencode.ai/zen/go/v1/usage with the opencode-go API key
 # DeepSeek: GET https://api.deepseek.com/user/balance
 # OpenRouter: GET https://openrouter.ai/api/v1/credits
+# Z.ai: GET https://api.z.ai/api/monitor/usage/quota/limit
 # Grok: billing usage via ~/.grok/auth.json + cli-chat-proxy billing
 #
 # Env:
@@ -20,11 +21,14 @@
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
 #   AIQ_OPENROUTER_ENABLED    "1" to fetch OpenRouter (default: "1")
+#   AIQ_ZAI_ENABLED           "1" to fetch Z.ai Coding Plan (default: "1")
 #   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
 #   OPENROUTER_API_KEY        OpenRouter API key (management key only if credits are denied)
-#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
-#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
+#   ZAI_API_KEY               Z.ai Coding Plan key
+#   OPENCODE_GO_API_KEY       OpenCode Go API key (default: local opencode login)
+#   OPENCODE_API_KEY          OpenCode Go API key fallback
+#   OPENCODE_DATA_DIR         opencode data directory (default $XDG_DATA_HOME/opencode)
 #   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
 #   AIQ_FORCE_REFRESH         "1" to bypass the cache
 #   AIQ_USAGE_MOCK            file with sample JSON (for tests)
@@ -35,6 +39,7 @@ claude_enabled="${AIQ_CLAUDE_ENABLED:-1}"
 oc_enabled="${AIQ_OPENCODE_ENABLED:-1}"
 ds_enabled="${AIQ_DEEPSEEK_ENABLED:-1}"
 or_enabled="${AIQ_OPENROUTER_ENABLED:-1}"
+zai_enabled="${AIQ_ZAI_ENABLED:-1}"
 codex_enabled="${AIQ_CODEX_ENABLED:-1}"
 agy_enabled="${AIQ_ANTIGRAVITY_ENABLED:-1}"
 grok_enabled="${AIQ_GROK_ENABLED:-1}"
@@ -304,67 +309,74 @@ fi
 # ============================================================
 oc_data='{"status":"unavailable"}'
 if [ "$oc_enabled" = "1" ]; then
-    ws_id="${OPENCODE_GO_WORKSPACE_ID:-}"
-    auth="${OPENCODE_GO_AUTH_COOKIE:-}"
+    oc_key="${OPENCODE_GO_API_KEY:-${OPENCODE_API_KEY:-}}"
+    if [ -z "$oc_key" ]; then
+        oc_data_dir="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}"
+        oc_key=$(jq -r '."opencode-go".key // empty' "$oc_data_dir/auth.json" 2>/dev/null)
+    fi
 
-    if [ -n "$ws_id" ] && [ -n "$auth" ]; then
-        url="https://opencode.ai/workspace/$(printf '%s' "$ws_id" | jq -sRr @uri)/go"
-        html=$(curl -s -m 15 \
-            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/148.0" \
-            -H "Accept: text/html" \
-            -H "Cookie: auth=$auth" \
-            "$url" 2>/dev/null)
-
-        if [ -n "$html" ]; then
-            # Extract usagePercent and resetInSec for each window.
-            # Returns "pct reset" or empty.
-            extract() {
-                local label="$1"
-                local pct="" reset=""
-                # Match: rollingUsage:$R[N]={...usagePercent: N...resetInSec: N...}
-                local block
-                block=$(printf '%s' "$html" | sed -n "s/.*${label}:\$R\[[0-9]*\]={\([^}]*\)}.*/\1/p" | head -1)
-                if [ -n "$block" ]; then
-                    pct=$(printf '%s' "$block" | sed -n 's/.*usagePercent:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
-                    reset=$(printf '%s' "$block" | sed -n 's/.*resetInSec:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
+    if [ -n "$oc_key" ]; then
+        oc_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $oc_key" \
+            -H "Accept: application/json" \
+            -H "User-Agent: dms-ai-quotas" \
+            https://opencode.ai/zen/go/v1/usage 2>/dev/null)
+        oc_http_code=$(printf '%s\n' "$oc_response" | tail -n 1)
+        oc_body=$(printf '%s\n' "$oc_response" | sed '$d')
+        case "$oc_http_code" in
+            2??)
+                # Response: {usage:{rolling,weekly,monthly:{status,percent,resetsAt}}}
+                # percent is the used share of each window, as shown on the dashboard.
+                oc_parsed=$(printf '%s' "$oc_body" | jq -c --argjson now "$now" '
+                    def pct:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // empty)
+                        else empty
+                        end |
+                        if . < 0 then 0 elif . > 100 then 100 else . end;
+                    def reset_at:
+                        if (.resetsAt? | type) == "string" then
+                            (.resetsAt | sub("\\.[0-9]+Z?$"; "Z") | fromdateiso8601? // 0)
+                        elif (.resetsInSeconds? | type) == "number" then
+                            ($now + (.resetsInSeconds | floor))
+                        else 0
+                        end;
+                    def window($name; $w):
+                        ($w.percent? | pct) as $p |
+                        {name: $name, percentUsed: $p, resetAt: ($w | reset_at)};
+                    [
+                        (.usage.rolling? // empty | window("Rolling"; .)),
+                        (.usage.weekly? // empty | window("Weekly"; .)),
+                        (.usage.monthly? // empty | window("Monthly"; .))
+                    ] as $entries |
+                    {status: "ok", entries: $entries}
+                ' 2>/dev/null)
+                if [ -z "$oc_parsed" ]; then
+                    oc_data='{"status":"error","error":"Could not parse OpenCode Go usage response."}'
+                elif [ "$(printf '%s' "$oc_parsed" | jq -r '.entries | length' 2>/dev/null)" = "0" ]; then
+                    oc_data='{"status":"error","error":"OpenCode Go returned no usage windows."}'
+                else
+                    oc_data="$oc_parsed"
                 fi
-                if [ -n "$pct" ] && [ -n "$reset" ]; then
-                    printf '%s %s' "$pct" "$reset"
-                fi
-            }
-
-            rolling=$(extract "rollingUsage")
-            weekly=$(extract "weeklyUsage")
-            monthly=$(extract "monthlyUsage")
-
-            # Build JSON entries.
-            entries="["
-            first=1
-            for pair in "Rolling:$rolling" "Weekly:$weekly" "Monthly:$monthly"; do
-                label="${pair%%:*}"
-                data="${pair#*:}"
-                [ -z "$data" ] && continue
-                pct=$(printf '%s' "$data" | cut -d' ' -f1)
-                reset=$(printf '%s' "$data" | cut -d' ' -f2)
-                [ -z "$pct" ] || [ -z "$reset" ] && continue
-
-                [ "$first" = "0" ] && entries="$entries,"
-                first=0
-                reset_at=$((now + ${reset%.*}))
-                entries="$entries{\"name\":\"$label\",\"percentUsed\":$pct,\"resetAt\":$reset_at}"
-            done
-            entries="$entries]"
-
-            if [ "$entries" != "[]" ]; then
-                oc_data="{\"status\":\"ok\",\"entries\":$entries}"
-            else
-                oc_data="{\"status\":\"error\",\"error\":\"Could not parse usage from dashboard\"}"
-            fi
-        else
-            oc_data="{\"status\":\"error\",\"error\":\"Failed to fetch dashboard\"}"
-        fi
+                ;;
+            401)
+                oc_data='{"status":"error","reason":"auth_expired","error":"OpenCode Go rejected this API key. Check the key in plugin settings."}'
+                ;;
+            403)
+                oc_data='{"status":"error","reason":"no_subscription","error":"This API key has no OpenCode Go subscription. Subscribe at opencode.ai/auth."}'
+                ;;
+            429)
+                oc_data='{"status":"error","reason":"rate_limited","error":"OpenCode Go usage is temporarily rate limited. Try again shortly."}'
+                ;;
+            000)
+                oc_data='{"status":"error","reason":"network","error":"Could not reach the OpenCode Go API. Check your connection and try again."}'
+                ;;
+            *)
+                oc_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"OpenCode Go API returned HTTP $oc_http_code. Try again shortly.\"}"
+                ;;
+        esac
     else
-        oc_data="{\"status\":\"unavailable\",\"error\":\"Set OpenCode credentials in plugin settings\"}"
+        oc_data='{"status":"unavailable","reason":"not_authenticated","error":"OpenCode Go API key not found. Sign in with opencode or paste a key in plugin settings."}'
     fi
 fi
 
@@ -442,6 +454,94 @@ if [ "$or_enabled" = "1" ]; then
                 or_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"OpenRouter API returned HTTP $or_http_code. Try again shortly.\"}"
                 ;;
         esac
+    fi
+fi
+
+# ============================================================
+# Z.ai Coding Plan
+# ============================================================
+zai_data='{"status":"unavailable"}'
+if [ "$zai_enabled" = "1" ]; then
+    zai_key="${ZAI_API_KEY:-${ANTHROPIC_AUTH_TOKEN:-}}"
+    if [ -n "$zai_key" ]; then
+        zai_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "Authorization: $zai_key" \
+            -H "Accept-Language: en-US,en" \
+            -H "Content-Type: application/json" \
+            https://api.z.ai/api/monitor/usage/quota/limit 2>/dev/null)
+        zai_http_code=$(printf '%s\n' "$zai_response" | tail -n 1)
+        zai_body=$(printf '%s\n' "$zai_response" | sed '$d')
+        case "$zai_http_code" in
+            2??)
+                zai_api_code=$(printf '%s' "$zai_body" | jq -r '.code // 200' 2>/dev/null)
+                if [ "$zai_api_code" = "200" ] && [ "$(printf '%s' "$zai_body" | jq -r '.success != false and (.data.limits | type == "array")' 2>/dev/null)" = "true" ]; then
+                    zai_data=$(printf '%s' "$zai_body" | jq -c '
+                        def number:
+                            if type == "number" then .
+                            elif type == "string" then (tonumber? // 0)
+                            else 0
+                            end;
+                        def quota_name:
+                            if ((.unit? | number) == 3 and (.number? | number) == 5) then "5h"
+                            elif (((.unit? | number) == 6 or (.unit? | number) == 4) and (.number? | number) == 1) then "Weekly"
+                            elif .type == "TIME_LIMIT" then "MCP"
+                            elif .type == "TOKENS_LIMIT" then "5h"
+                            else (.type // "Quota")
+                            end;
+                        def percent_used:
+                            if .percentage? != null then (.percentage | number)
+                            elif (.usage? | number) > 0 and .currentValue? != null then
+                                ((.currentValue | number) * 100 / (.usage | number))
+                            elif (.usage? | number) > 0 and .remaining? != null then
+                                (((.usage | number) - (.remaining | number)) * 100 / (.usage | number))
+                            else 0
+                            end |
+                            if . < 0 then 0 elif . > 100 then 100 else . end;
+                        def reset_at:
+                            (.nextResetTime? | number) as $reset |
+                            if $reset >= 100000000000 then ($reset / 1000 | floor) else $reset end;
+                        {
+                            status: "ok",
+                            plan: (.data.level // .data.planName // .data.plan // null),
+                            entries: [.data.limits[] | {
+                                name: quota_name,
+                                percentUsed: percent_used,
+                                resetAt: reset_at,
+                                limit: (.usage? | number),
+                                used: (.currentValue? | number),
+                                remaining: (.remaining? | number)
+                            }]
+                        }
+                    ' 2>/dev/null) || zai_data='{"status":"error","error":"Could not parse Z.ai quota response"}'
+                else
+                    case "$zai_api_code" in
+                        401|1000|1001)
+                            zai_data='{"status":"error","reason":"auth_expired","error":"Z.ai rejected this Coding Plan key. Check the key in plugin settings."}'
+                            ;;
+                        *)
+                            zai_data='{"status":"error","error":"Z.ai returned an invalid quota response."}'
+                            ;;
+                    esac
+                fi
+                ;;
+            401)
+                zai_data='{"status":"error","reason":"auth_expired","error":"Z.ai rejected this Coding Plan key. Check the key in plugin settings."}'
+                ;;
+            403)
+                zai_data='{"status":"error","reason":"access_denied","error":"Z.ai denied access to Coding Plan quota data."}'
+                ;;
+            429)
+                zai_data='{"status":"error","reason":"rate_limited","error":"Z.ai quota data is temporarily rate limited. Try again shortly."}'
+                ;;
+            000)
+                zai_data='{"status":"error","reason":"network","error":"Could not reach the Z.ai API. Check your connection and try again."}'
+                ;;
+            *)
+                zai_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"Z.ai API returned HTTP $zai_http_code. Try again shortly.\"}"
+                ;;
+        esac
+    else
+        zai_data='{"status":"unavailable","reason":"not_authenticated","error":"Set the Z.ai Coding Plan key in plugin settings."}'
     fi
 fi
 
@@ -693,9 +793,10 @@ out=$(jq -c -n \
     --argjson oc "$oc_data" \
     --argjson ds "$ds_data" \
     --argjson or "$or_data" \
+    --argjson zai "$zai_data" \
     --argjson grok "$grok_data" \
     --argjson agy "$agy_data" \
-    '{captured_at: $now, claude: $claude, codex: $codex, opencode: $oc, deepseek: $ds, openrouter: $or, grok: $grok, antigravity: $agy}') || exit 2
+    '{captured_at: $now, claude: $claude, codex: $codex, opencode: $oc, deepseek: $ds, openrouter: $or, zai: $zai, grok: $grok, antigravity: $agy}') || exit 2
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"

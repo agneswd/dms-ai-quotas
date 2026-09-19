@@ -11,12 +11,14 @@ PluginComponent {
     property bool claudeEnabled: pluginData.claudeEnabled !== false
     property bool codexEnabled: pluginData.codexEnabled !== false
     property bool openCodeEnabled: pluginData.openCodeEnabled !== false
+    property bool zaiEnabled: pluginData.zaiEnabled !== false
     property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
     property bool openRouterEnabled: pluginData.openRouterEnabled !== false
     property bool antigravityEnabled: pluginData.antigravityEnabled !== false
     property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openRouterApiKey: pluginData.openRouterApiKey || ""
+    property string zaiApiKey: pluginData.zaiApiKey || ""
     property string displayMode: pluginData.displayMode || "remaining"
     property bool showResetTime: pluginData.showResetTime !== false
     property bool showResetCountdown: pluginData.showResetCountdown === true
@@ -39,9 +41,9 @@ PluginComponent {
     }
 
     Component.onCompleted: {
+        root.loadUsageData()
         root.loadPinState()
         root.ensureSelectedProvider()
-        root.loadUsageData()
     }
 
     // PluginComponent injects pluginData after child completion during startup.
@@ -74,16 +76,40 @@ PluginComponent {
         target: root.pluginService
         enabled: root.pluginService !== null
         function onPluginStateChanged(changedPluginId) {
-            if (changedPluginId === "aiQuotas")
+            if (changedPluginId === "aiQuotas") {
                 root.loadUsageData()
+                root.loadPinState()
+            }
         }
     }
 
-    readonly property var providerIds: ["claude", "codex", "opencode", "deepseek", "openrouter", "grok", "antigravity"]
+    readonly property var providerIds: ["claude", "codex", "opencode", "zai", "deepseek", "openrouter", "grok", "antigravity"]
 
     function defaultPinState() {
         var openCodePin = savedSetting("pinnedWindow", "Rolling") || "Rolling"
-        return { claude: ["5h"], codex: ["5h"], opencode: [openCodePin], deepseek: ["balance"], openrouter: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
+        var codexPin = "5h"
+        var availableCodexEntries = codexEntries()
+        if (availableCodexEntries.length > 0) {
+            codexPin = availableCodexEntries[0].name
+            for (var i = 0; i < availableCodexEntries.length; i++) {
+                if (availableCodexEntries[i].name === "5h") {
+                    codexPin = "5h"
+                    break
+                }
+            }
+        }
+        var zaiPin = "5h"
+        var availableZaiEntries = zaiEntries()
+        if (availableZaiEntries.length > 0) {
+            zaiPin = availableZaiEntries[0].name
+            for (var j = 0; j < availableZaiEntries.length; j++) {
+                if (availableZaiEntries[j].name === "5h") {
+                    zaiPin = "5h"
+                    break
+                }
+            }
+        }
+        return { claude: ["5h"], codex: [codexPin], opencode: [openCodePin], zai: [zaiPin], deepseek: ["balance"], openrouter: ["balance"], grok: ["Billing"], antigravity: ["Gemini Models - Five Hour Limit Remaining"] }
     }
 
     function savedSetting(key, fallback) {
@@ -152,6 +178,7 @@ PluginComponent {
     function pinnedClaudeEntries() { return pinnedEntries("claude", claudeEntries()) }
     function pinnedCodexEntries() { return pinnedEntries("codex", codexEntries()) }
     function pinnedOpenCodeEntries() { return pinnedEntries("opencode", ocEntries()) }
+    function pinnedZaiEntries() { return pinnedEntries("zai", zaiEntries()) }
     function pinnedGrokEntries() { return pinnedEntries("grok", grokEntries()) }
     function pinnedAntigravityEntries() { return pinnedEntries("antigravity", antigravityEntries()) }
     function deepSeekPinned() { return isPinned("deepseek", "balance") }
@@ -161,6 +188,7 @@ PluginComponent {
         if (provider === "claude") return claudeEnabled
         if (provider === "codex") return codexEnabled
         if (provider === "opencode") return openCodeEnabled
+        if (provider === "zai") return zaiEnabled
         if (provider === "deepseek") return deepSeekEnabled
         if (provider === "openrouter") return openRouterEnabled
         if (provider === "grok") return grokEnabled
@@ -173,6 +201,7 @@ PluginComponent {
         if (claudeEnabled) out.push({ id: "claude", label: "Claude", icon: "assets/claude-logo.svg" })
         if (codexEnabled) out.push({ id: "codex", label: "Codex", icon: "assets/codex-logo.svg" })
         if (openCodeEnabled) out.push({ id: "opencode", label: "OpenCode", icon: "assets/opencode-logo.svg" })
+        if (zaiEnabled) out.push({ id: "zai", label: "Z.ai", icon: "assets/zai-logo.svg" })
         if (deepSeekEnabled) out.push({ id: "deepseek", label: "DeepSeek", icon: "assets/deepseek-logo.svg" })
         if (openRouterEnabled) out.push({ id: "openrouter", label: "OpenRouter", icon: "assets/openrouter-logo.svg" })
         if (grokEnabled) out.push({ id: "grok", label: "Grok", icon: "assets/grok-logo.svg" })
@@ -205,6 +234,14 @@ PluginComponent {
             if (!usageData || !usageData.codex) return []
             if (usageData.codex.status !== "ok") return []
             return usageData.codex.entries || []
+        } catch (e) { return [] }
+    }
+
+    function zaiEntries() {
+        try {
+            if (!usageData || !usageData.zai) return []
+            if (usageData.zai.status !== "ok") return []
+            return usageData.zai.entries || []
         } catch (e) { return [] }
     }
 
@@ -343,6 +380,15 @@ PluginComponent {
         } catch (e) { return "Codex usage limit" }
     }
 
+    function zaiLabel(entry) {
+        try {
+            if (entry.name === "5h") return "5 hour credit limit"
+            if (entry.name === "Weekly") return "Weekly credit limit"
+            if (entry.name === "MCP") return "Monthly MCP tools limit"
+            return entry.name + " limit"
+        } catch (e) { return "Z.ai Coding Plan limit" }
+    }
+
     function cdown(t) {
         try {
             if (!t) return "--"
@@ -393,7 +439,8 @@ PluginComponent {
     function pctStr(pct) {
         try {
             if (pct < 0) return "--"
-            return displayMode === "used" ? pct + "% used" : (100 - pct) + "% remaining"
+            var shown = Math.round((displayMode === "used" ? pct : 100 - pct) * 100) / 100
+            return shown + (displayMode === "used" ? "% used" : "% remaining")
         } catch (e) { return "--" }
     }
 
@@ -410,6 +457,26 @@ PluginComponent {
         } catch (e) { return 0 }
     }
 
+    function providerExhausted(provider) {
+        var entries = []
+        if (provider === "claude") entries = claudeEntries()
+        else if (provider === "codex") entries = codexEntries()
+        else if (provider === "opencode") entries = ocEntries()
+        else if (provider === "zai") entries = zaiEntries()
+        else return false
+        var blocking = (provider === "codex" || provider === "zai") ? ["5h", "Weekly"] : null
+        for (var i = 0; i < entries.length; i++) {
+            if (blocking && blocking.indexOf(entries[i].name) < 0) continue
+            if ((entries[i].percentUsed || 0) >= 100) return true
+        }
+        return false
+    }
+
+    function pillPct(provider, entry) {
+        if (providerExhausted(provider)) return 100
+        return entry.percentUsed || 0
+    }
+
     // --- Bar Pills ---
 
     horizontalBarPill: Component {
@@ -423,14 +490,14 @@ PluginComponent {
             Row {
                 id: hRow
                 anchors.centerIn: parent
-                spacing: Theme.spacingS
+                spacing: Theme.spacingXS
 
                 // Placeholder when nothing configured
                 StyledText {
                     visible: !root.usageData
                     text: "\u2733 -"
                     color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                 }
 
                 // Claude pinned entries
@@ -447,9 +514,9 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("claude", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -457,7 +524,7 @@ PluginComponent {
 
                 // Separator after Claude
                 Rectangle {
-                    visible: root.pinnedClaudeEntries().length > 0 && (root.pinnedCodexEntries().length > 0 || root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedClaudeEntries().length > 0 && (root.pinnedCodexEntries().length > 0 || root.pinnedOpenCodeEntries().length > 0 || root.pinnedZaiEntries().length > 0 || root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -479,9 +546,9 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("codex", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -489,7 +556,7 @@ PluginComponent {
 
                 // Separator after Codex
                 Rectangle {
-                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.hasDeepSeek() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedCodexEntries().length > 0 && (root.pinnedOpenCodeEntries().length > 0 || root.pinnedZaiEntries().length > 0 || root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -511,9 +578,9 @@ PluginComponent {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("opencode", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -521,7 +588,39 @@ PluginComponent {
 
                 // Separator after OpenCode
                 Rectangle {
-                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    visible: root.pinnedOpenCodeEntries().length > 0 && (root.pinnedZaiEntries().length > 0 || root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
+                    width: 1
+                    height: pill.height - 8
+                    color: Theme.outlineVariant
+                    opacity: 0.4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Z.ai pinned entries
+                Repeater {
+                    model: root.pinnedZaiEntries()
+                    delegate: Row {
+                        spacing: 4
+                        Image {
+                            source: root.pluginDir + "assets/zai-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(root.pillPct("zai", modelData))) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                // Separator after Z.ai
+                Rectangle {
+                    visible: root.pinnedZaiEntries().length > 0 && (root.hasDeepSeek() || root.hasOpenRouter() || root.pinnedGrokEntries().length > 0 || root.pinnedAntigravityEntries().length > 0)
                     width: 1
                     height: pill.height - 8
                     color: Theme.outlineVariant
@@ -545,7 +644,7 @@ PluginComponent {
                         StyledText {
                             text: root.fmtBal(root.dsBalance())
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -577,7 +676,7 @@ PluginComponent {
                         StyledText {
                             text: root.fmtBal(root.orBalance())
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -609,7 +708,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -641,7 +740,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -669,7 +768,7 @@ PluginComponent {
                     visible: !root.usageData
                     text: "\u2733"
                     color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                 }
 
                 Repeater {
@@ -685,9 +784,9 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("claude", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -706,9 +805,9 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("codex", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -727,9 +826,30 @@ PluginComponent {
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
-                            text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
+                            text: Math.round(root.pctVal(root.pillPct("opencode", modelData))) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.pinnedZaiEntries()
+                    delegate: Column {
+                        spacing: 1
+                        Image {
+                            source: root.pluginDir + "assets/zai-logo.svg"
+                            sourceSize.width: 16
+                            sourceSize.height: 16
+                            width: 16; height: 16
+                            fillMode: Image.PreserveAspectFit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        StyledText {
+                            text: Math.round(root.pctVal(root.pillPct("zai", modelData))) + "%"
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -753,7 +873,7 @@ PluginComponent {
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -777,7 +897,7 @@ PluginComponent {
                                 return b ? (parseFloat(b.total) || 0).toFixed(0) : "--"
                             }
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -798,7 +918,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -819,7 +939,7 @@ PluginComponent {
                         StyledText {
                             text: Math.round(root.pctVal(modelData.percentUsed || 0)) + "%"
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeSmall
+                            font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -1179,6 +1299,135 @@ PluginComponent {
                         }
                     }
 
+                    // --- Z.ai card ---
+                    StyledRect {
+                        visible: root.selectedProvider === "zai" && root.zaiEnabled
+                        width: parent.width
+                        height: zaiCard.implicitHeight + Theme.spacingM * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.surfaceContainerHigh
+
+                        Column {
+                            id: zaiCard
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingM
+                            spacing: Theme.spacingS
+
+                            StyledText {
+                                visible: root.zaiEntries().length > 0
+                                text: root.usageData && root.usageData.zai && root.usageData.zai.plan
+                                    ? "Z.ai Coding Plan (" + root.usageData.zai.plan + ")" : "Z.ai Coding Plan"
+                                color: Theme.surfaceVariantText
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                            }
+
+                            Repeater {
+                                model: root.zaiEntries()
+                                delegate: Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingM
+                                        Image {
+                                            source: root.pluginDir + "assets/zai-logo.svg"
+                                            sourceSize.width: 28
+                                            sourceSize.height: 28
+                                            width: 28; height: 28
+                                            fillMode: Image.PreserveAspectFit
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Column {
+                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            StyledText {
+                                                text: root.zaiLabel(modelData)
+                                                color: Theme.surfaceVariantText
+                                                font.pixelSize: Theme.fontSizeSmall
+                                            }
+                                            StyledText {
+                                                text: root.pctStr(modelData.percentUsed || 0)
+                                                color: Theme.surfaceText
+                                                font.pixelSize: Theme.fontSizeLarge
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 28; height: 28; radius: 14
+                                            color: root.isPinned("zai", modelData.name)
+                                                ? Theme.surfaceSelected
+                                                : (zaiPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
+                                            border.color: root.isPinned("zai", modelData.name)
+                                                ? Theme.outlineMedium : Theme.outlineVariant
+                                            border.width: 1
+                                            anchors.verticalCenter: parent.verticalCenter
+
+                                            MouseArea {
+                                                id: zaiPinArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: root.togglePin("zai", modelData.name)
+                                            }
+
+                                            DankIcon {
+                                                anchors.centerIn: parent
+                                                name: "push_pin"
+                                                size: 17
+                                                color: root.isPinned("zai", modelData.name)
+                                                    ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned("zai", modelData.name) ? 0 : 45
+                                            }
+                                        }
+                                    }
+                                    Rectangle {
+                                        id: zaiProgressTrack
+                                        width: parent.width
+                                        height: 8
+                                        radius: 4
+                                        color: Theme.outlineVariant
+                                        Rectangle {
+                                            width: zaiProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: Theme.primary
+                                        }
+                                    }
+                                    StyledText {
+                                        visible: root.showResetTime && modelData.resetAt > 0
+                                        text: root.resetLabel(modelData.resetAt)
+                                        color: Theme.surfaceVariantText
+                                        font.pixelSize: Theme.fontSizeSmall
+                                    }
+                                }
+                            }
+
+                            StyledText {
+                                visible: root.zaiEntries().length === 0
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: {
+                                    var z = root.usageData && root.usageData.zai
+                                    return z && (z.reason === "not_authenticated" || z.reason === "auth_expired")
+                                        ? Theme.warning : Theme.surfaceVariantText
+                                }
+                                font.pixelSize: Theme.fontSizeSmall
+                                text: {
+                                    if (!root.usageData) return "Loading..."
+                                    var z = root.usageData.zai
+                                    if (z && z.reason === "not_authenticated")
+                                        return "Z.ai is not connected.\nAdd your Coding Plan key in plugin settings."
+                                    if (z && z.reason === "auth_expired")
+                                        return "Z.ai rejected this Coding Plan key.\nCheck the key in plugin settings."
+                                    if (z && z.error) return z.error
+                                    return "No Z.ai Coding Plan usage data."
+                                }
+                            }
+                        }
+                    }
+
                     // --- Antigravity container ---
                     Column {
                         visible: root.selectedProvider === "antigravity" && root.antigravityEnabled
@@ -1442,7 +1691,7 @@ PluginComponent {
                                     if (!root.usageData) return "Loading..."
                                     var o = root.usageData.opencode
                                     if (o && o.error) return o.error
-                                    if (o && o.status === "unavailable") return "Set OpenCode credentials in plugin settings."
+                                    if (o && o.status === "unavailable") return "Sign in with opencode or set an OpenCode Go API key in plugin settings."
                                     return "No OpenCode data."
                                 }
                             }

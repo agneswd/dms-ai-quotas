@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, OpenRouter, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, OpenCode, Z.ai, Antigravity, DeepSeek, OpenRouter, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
@@ -13,6 +13,7 @@ Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, OpenRouter, and Grok usa
 | **Claude** | Claude plan usage limits | 5-hour and weekly usage % with reset countdowns |
 | **Codex** | ChatGPT plan usage limits | 5-hour, weekly, and code review usage % with reset countdowns |
 | **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
+| **Z.ai Coding Plan** | Plan credit limits | 5-hour, weekly, and legacy monthly MCP usage % with reset countdowns |
 | **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
 | **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
 | **OpenRouter** | Account credit balance | Remaining credits, purchased total, and usage |
@@ -23,10 +24,10 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 ## Features
 
 - Merged bar pill showing provider logos, pinned percentages, and DeepSeek and OpenRouter balances
-- Claude, Codex, OpenCode, and Grok pinned percentages in the bar pill, with all supported limits in the popout
+- Claude, Codex, OpenCode, Z.ai, and Grok pinned percentages in the bar pill, with all supported limits in the popout
 - Separators between provider sections in the pill
 - Click to open a tabbed provider popout with clean per-limit detail cards
-- Pin any Claude, Codex, OpenCode, DeepSeek, or Grok item directly from its popout card
+- Pin any Claude, Codex, OpenCode, Z.ai, DeepSeek, or Grok item directly from its popout card
 - Display mode toggle: show remaining % or used % (synced between pill and popout)
 - Reset date/time or countdown shown for each usage limit
 - DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
@@ -46,7 +47,8 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - For OpenRouter: an API key from [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). If credit access is denied, create a management key at [openrouter.ai/settings/management-keys](https://openrouter.ai/settings/management-keys)
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
-- For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
+- For OpenCode: an OpenCode Go subscription; the key from your local opencode login is reused automatically, or paste one in plugin settings
+- For Z.ai: the Coding Plan key configured as `ANTHROPIC_AUTH_TOKEN` in your coding agent
 - For Antigravity: `secret-tool` and an authenticated Antigravity CLI (`agy`)
 
 ## Install
@@ -72,6 +74,7 @@ Then in DMS:
 | Claude | on | Show Claude plan usage limits from the local Claude Code login |
 | Codex | on | Show Codex usage limits from the local Codex login |
 | OpenCode | on | Show OpenCode usage quotas |
+| Z.ai Coding Plan | on | Show Coding Plan credit limits |
 | Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
 | OpenRouter | on | Show OpenRouter credit balance |
@@ -91,8 +94,8 @@ Claude, Codex and Grok use their local CLI logins automatically. Sign in once wi
 |---------|-------------|
 | DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
 | OpenRouter API Key | Your OpenRouter API key from openrouter.ai/settings/keys |
-| OpenCode Workspace ID | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
-| OpenCode Auth Cookie | The `auth` cookie from opencode.ai |
+| Z.ai Coding Plan Key | The key configured as `ANTHROPIC_AUTH_TOKEN` for your Coding Plan |
+| OpenCode Go API Key | Optional. Reuses the `opencode-go` key from your local opencode login (`~/.local/share/opencode/auth.json`) when empty |
 
 ### Enable Claude quota capture
 
@@ -109,23 +112,21 @@ Add the plugin's capture script as your Claude Code status line in `~/.claude/se
 
 Claude Code provides quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into that script instead of replacing it.
 
-## How to get OpenCode credentials
+## OpenCode Go
 
-1. Open [opencode.ai](https://opencode.ai) in your browser and sign in
-2. Navigate to your workspace (e.g. `opencode.ai/workspace/wrk_abc123/go`)
-3. Copy `wrk_abc123` from the URL - that's your **Workspace ID**
-4. Open browser dev tools (F12) -> Application -> Cookies -> `opencode.ai`
-5. Copy the `auth` cookie value - that's your **Auth Cookie**
-6. Paste both into DMS Settings -> AI Quotas
+OpenCode Go usage comes from `GET https://opencode.ai/zen/go/v1/usage` using your OpenCode Go API key. The plugin locates the key at `~/.local/share/opencode/auth.json` (honoring `$XDG_DATA_HOME` and `$OPENCODE_DATA_DIR`), so no setup is needed after signing in with opencode. To use a different key, paste it into DMS Settings -> AI Quotas -> OpenCode Go API Key.
+
+No workspace ID or browser cookie is required.
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, queries the OpenCode Go usage endpoint with the local `opencode-go` API key, queries Z.ai Coding Plan quotas with its plan key, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native data + 5m fallback   ---> local usage snapshot --------------\
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
-curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
+opencode auth.json                 ---> opencode.ai/zen/go/v1/usage         --\
+Z.ai Coding Plan key               ---> api.z.ai/api/monitor/usage         --\
 System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
 openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --\

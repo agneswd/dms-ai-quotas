@@ -48,6 +48,7 @@ run_fetch() {
         AIQ_CODEX_ENABLED=0 \
         AIQ_OPENCODE_ENABLED=0 \
         AIQ_DEEPSEEK_ENABLED=0 \
+        AIQ_ZAI_ENABLED=0 \
         AIQ_GROK_ENABLED=0 \
         AIQ_ANTIGRAVITY_ENABLED=0 \
         AIQ_CACHE_TTL=0 \
