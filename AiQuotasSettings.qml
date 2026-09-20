@@ -47,7 +47,7 @@ PluginSettings {
             id: openCodeEnabled
             settingKey: "openCodeEnabled"
             label: I18n.tr("OpenCode Go")
-            description: I18n.tr("Show OpenCode Go usage quotas.")
+            description: I18n.tr("Show OpenCode Go usage quotas from your local OpenCode login.")
             defaultValue: true
         }
 
@@ -157,12 +157,11 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeWorkspaceId.isDirty || openCodeAuthCookie.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty
             onResetClicked: {
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
-                openCodeWorkspaceId.resetToDefault()
-                openCodeAuthCookie.resetToDefault()
+                openCodeApiKey.resetToDefault()
             }
         }
 
@@ -189,22 +188,11 @@ PluginSettings {
         Separator {}
 
         StringSettingPlus {
-            id: openCodeWorkspaceId
-            settingKey: "openCodeWorkspaceId"
-            label: I18n.tr("OpenCode Workspace ID")
-            description: I18n.tr("Find this in your opencode.ai workspace URL.")
-            placeholder: "wrk_..."
-            defaultValue: ""
-        }
-
-        Separator {}
-
-        StringSettingPlus {
-            id: openCodeAuthCookie
-            settingKey: "openCodeAuthCookie"
-            label: I18n.tr("OpenCode Auth Cookie")
-            description: I18n.tr("Copy the auth cookie from your browser's application storage.")
-            placeholder: I18n.tr("Paste your auth cookie")
+            id: openCodeApiKey
+            settingKey: "openCodeApiKey"
+            label: I18n.tr("OpenCode Go API Key")
+            description: I18n.tr("Optional. Leave empty to use the key from opencode /connect.")
+            placeholder: "sk-..."
             defaultValue: ""
         }
     }

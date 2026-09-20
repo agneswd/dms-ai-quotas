@@ -35,7 +35,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - Configurable refresh interval (30s - 300s)
 - Toggle each provider on/off independently
 - OpenCode Rolling (5h), Weekly, and Monthly windows are always available in the popout
-- All credentials configured from DMS settings - no config files needed
+- Claude, Codex, OpenCode, and Grok use local CLI logins. DeepSeek and OpenRouter keys are set in DMS settings.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - For OpenRouter: an API key from [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). If credit access is denied, create a management key at [openrouter.ai/settings/management-keys](https://openrouter.ai/settings/management-keys)
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
-- For OpenCode: workspace ID and auth cookie from [opencode.ai](https://opencode.ai)
+- For OpenCode: the OpenCode CLI connected with `/connect` to OpenCode Go, or an API key from [opencode.ai](https://opencode.ai)
 - For Antigravity: `secret-tool` and an authenticated Antigravity CLI (`agy`)
 
 ## Install
@@ -71,7 +71,7 @@ Then in DMS:
 |---------|---------|-------------|
 | Claude | on | Show Claude plan usage limits from the local Claude Code login |
 | Codex | on | Show Codex usage limits from the local Codex login |
-| OpenCode | on | Show OpenCode usage quotas |
+| OpenCode | on | Show OpenCode Go usage quotas from the local OpenCode login |
 | Antigravity | on | Show Antigravity agent and model quotas |
 | DeepSeek | on | Show DeepSeek account balance |
 | OpenRouter | on | Show OpenRouter credit balance |
@@ -85,14 +85,13 @@ Use the pin button beside any limit in the popout to choose which limits appear 
 
 ### Credentials
 
-Claude, Codex and Grok use their local CLI logins automatically. Sign in once with `claude`, `codex login` and `grok login`; no tokens need to be copied into DMS settings. Claude usage comes from Claude Code's native rate-limit data, with a five-minute API fallback when that data is stale.
+Claude, Codex, OpenCode, and Grok use their local CLI logins automatically. Sign in once with `claude`, `codex login`, `opencode /connect` (OpenCode Go), and `grok login`. No tokens need to be copied into DMS settings for those providers. Claude usage comes from Claude Code's native rate-limit data, with a five-minute API fallback when that data is stale.
 
 | Setting | Description |
 |---------|-------------|
 | DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
 | OpenRouter API Key | Your OpenRouter API key from openrouter.ai/settings/keys |
-| OpenCode Workspace ID | From the URL: `opencode.ai/workspace/YOUR_ID/go` |
-| OpenCode Auth Cookie | The `auth` cookie from opencode.ai |
+| OpenCode Go API Key | Optional. Leave empty to use `~/.local/share/opencode/auth.json` |
 
 ### Enable Claude quota capture
 
@@ -111,21 +110,19 @@ Claude Code provides quota data after the first response in a session. If you al
 
 ## How to get OpenCode credentials
 
-1. Open [opencode.ai](https://opencode.ai) in your browser and sign in
-2. Navigate to your workspace (e.g. `opencode.ai/workspace/wrk_abc123/go`)
-3. Copy `wrk_abc123` from the URL - that's your **Workspace ID**
-4. Open browser dev tools (F12) -> Application -> Cookies -> `opencode.ai`
-5. Copy the `auth` cookie value - that's your **Auth Cookie**
-6. Paste both into DMS Settings -> AI Quotas
+1. Subscribe to Go at [opencode.ai](https://opencode.ai) and copy the API key
+2. In the OpenCode TUI run `/connect`, pick **OpenCode Go**, and paste the key
+3. The plugin reads the `opencode-go` key from `~/.local/share/opencode/auth.json`
+4. If you do not use the OpenCode CLI, paste the same key into DMS Settings -> AI Quotas
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, scrapes the OpenCode workspace dashboard directly via `curl`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, reads the OpenCode Go API key from plugin settings or `OPENCODE_DATA_DIR/auth.json` (default `~/.local/share/opencode/auth.json`) and queries `opencode.ai/zen/go/v1/usage`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
 
 ```
 Claude native data + 5m fallback   ---> local usage snapshot --------------\
 Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
-curl opencode.ai/workspace/{id}/go  ---> [Scrape dashboard]                 --\
+OpenCode auth.json or API key      ---> opencode.ai/zen/go/v1/usage        --\
 System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
 curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
 openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --\

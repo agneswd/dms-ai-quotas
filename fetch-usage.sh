@@ -3,7 +3,7 @@
 #
 # Claude: reads native rate-limit data captured from Claude Code's status line
 # Codex: GET https://chatgpt.com/backend-api/wham/usage using the local Codex login
-# OpenCode Go: Scrapes workspace dashboard directly via curl
+# OpenCode Go: GET https://opencode.ai/zen/go/v1/usage using a Go API key
 # DeepSeek: GET https://api.deepseek.com/user/balance
 # OpenRouter: GET https://openrouter.ai/api/v1/credits
 # Grok: billing usage via ~/.grok/auth.json + cli-chat-proxy billing
@@ -17,14 +17,15 @@
 #   CLAUDE_FALLBACK_STATE_FILE fallback poll state
 #   CODEX_HOME                Codex home directory (default $HOME/.codex)
 #   GROK_HOME                 Grok home directory (default $HOME/.grok)
+#   OPENCODE_DATA_DIR         OpenCode data directory (default $XDG_DATA_HOME/opencode)
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
 #   AIQ_OPENROUTER_ENABLED    "1" to fetch OpenRouter (default: "1")
 #   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
 #   OPENROUTER_API_KEY        OpenRouter API key (management key only if credits are denied)
-#   OPENCODE_GO_WORKSPACE_ID  OpenCode workspace ID
-#   OPENCODE_GO_AUTH_COOKIE   OpenCode auth cookie
+#   OPENCODE_GO_API_KEY       OpenCode Go API key (overrides local auth.json)
+#   OPENCODE_API_KEY          fallback OpenCode Go API key
 #   AIQ_CACHE_TTL             seconds before cache is stale (default: 55)
 #   AIQ_FORCE_REFRESH         "1" to bypass the cache
 #   AIQ_USAGE_MOCK            file with sample JSON (for tests)
@@ -304,67 +305,76 @@ fi
 # ============================================================
 oc_data='{"status":"unavailable"}'
 if [ "$oc_enabled" = "1" ]; then
-    ws_id="${OPENCODE_GO_WORKSPACE_ID:-}"
-    auth="${OPENCODE_GO_AUTH_COOKIE:-}"
+    oc_key="${OPENCODE_GO_API_KEY:-${OPENCODE_API_KEY:-}}"
+    if [ -z "$oc_key" ]; then
+        oc_data_dir="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}"
+        oc_key=$(jq -r '."opencode-go".key // empty' "$oc_data_dir/auth.json" 2>/dev/null)
+    fi
 
-    if [ -n "$ws_id" ] && [ -n "$auth" ]; then
-        url="https://opencode.ai/workspace/$(printf '%s' "$ws_id" | jq -sRr @uri)/go"
-        html=$(curl -s -m 15 \
-            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/148.0" \
-            -H "Accept: text/html" \
-            -H "Cookie: auth=$auth" \
-            "$url" 2>/dev/null)
-
-        if [ -n "$html" ]; then
-            # Extract usagePercent and resetInSec for each window.
-            # Returns "pct reset" or empty.
-            extract() {
-                local label="$1"
-                local pct="" reset=""
-                # Match: rollingUsage:$R[N]={...usagePercent: N...resetInSec: N...}
-                local block
-                block=$(printf '%s' "$html" | sed -n "s/.*${label}:\$R\[[0-9]*\]={\([^}]*\)}.*/\1/p" | head -1)
-                if [ -n "$block" ]; then
-                    pct=$(printf '%s' "$block" | sed -n 's/.*usagePercent:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
-                    reset=$(printf '%s' "$block" | sed -n 's/.*resetInSec:[[:space:]]*\(-\{0,1\}[0-9.]*\).*/\1/p')
-                fi
-                if [ -n "$pct" ] && [ -n "$reset" ]; then
-                    printf '%s %s' "$pct" "$reset"
-                fi
-            }
-
-            rolling=$(extract "rollingUsage")
-            weekly=$(extract "weeklyUsage")
-            monthly=$(extract "monthlyUsage")
-
-            # Build JSON entries.
-            entries="["
-            first=1
-            for pair in "Rolling:$rolling" "Weekly:$weekly" "Monthly:$monthly"; do
-                label="${pair%%:*}"
-                data="${pair#*:}"
-                [ -z "$data" ] && continue
-                pct=$(printf '%s' "$data" | cut -d' ' -f1)
-                reset=$(printf '%s' "$data" | cut -d' ' -f2)
-                [ -z "$pct" ] || [ -z "$reset" ] && continue
-
-                [ "$first" = "0" ] && entries="$entries,"
-                first=0
-                reset_at=$((now + ${reset%.*}))
-                entries="$entries{\"name\":\"$label\",\"percentUsed\":$pct,\"resetAt\":$reset_at}"
-            done
-            entries="$entries]"
-
-            if [ "$entries" != "[]" ]; then
-                oc_data="{\"status\":\"ok\",\"entries\":$entries}"
-            else
-                oc_data="{\"status\":\"error\",\"error\":\"Could not parse usage from dashboard\"}"
-            fi
-        else
-            oc_data="{\"status\":\"error\",\"error\":\"Failed to fetch dashboard\"}"
-        fi
+    if [ -n "$oc_key" ]; then
+        oc_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "Authorization: Bearer $oc_key" \
+            -H "Accept: application/json" \
+            https://opencode.ai/zen/go/v1/usage 2>/dev/null)
+        oc_http_code=$(printf '%s\n' "$oc_response" | tail -n 1)
+        oc_body=$(printf '%s\n' "$oc_response" | sed '$d')
+        case "$oc_http_code" in
+            2??)
+                oc_data=$(printf '%s' "$oc_body" | TZ=UTC jq -c '
+                    def number:
+                        if type == "number" then .
+                        elif type == "string" then (tonumber? // empty)
+                        else empty
+                        end;
+                    def iso_to_unix:
+                        if . == null then 0
+                        elif type == "number" then .
+                        elif type == "string" then
+                            (gsub("\\.[0-9]+Z$"; "Z") | fromdateiso8601? // 0)
+                        else 0
+                        end;
+                    def entry($name; $window):
+                        if ($window | type) != "object" then empty
+                        elif (($window.status // "ok") != "ok") then empty
+                        else
+                            ($window.percent | number) as $used |
+                            {
+                                name: $name,
+                                percentUsed: (if $used < 0 then 0 elif $used > 100 then 100 else $used end),
+                                resetAt: ($window.resetsAt | iso_to_unix)
+                            }
+                        end;
+                    (.usage // error("no usage data")) as $usage |
+                    [
+                        entry("Rolling"; $usage.rolling),
+                        entry("Weekly"; $usage.weekly),
+                        entry("Monthly"; $usage.monthly)
+                    ] as $entries |
+                    if ($entries | length) == 0 then
+                        error("no quota windows")
+                    else
+                        { status: "ok", entries: $entries }
+                    end
+                ' 2>/dev/null) || oc_data='{"status":"error","error":"Could not parse OpenCode usage"}'
+                ;;
+            401)
+                oc_data='{"status":"error","reason":"auth_expired","error":"OpenCode Go login expired. Run opencode /connect again, or update the API key in plugin settings."}'
+                ;;
+            403)
+                oc_data='{"status":"error","reason":"access_denied","error":"OpenCode Go usage access was denied for this key."}'
+                ;;
+            429)
+                oc_data='{"status":"error","reason":"rate_limited","error":"OpenCode Go usage is temporarily rate limited. Try again shortly."}'
+                ;;
+            000)
+                oc_data='{"status":"error","reason":"network","error":"Could not reach the OpenCode Go usage service. Check your connection and try again."}'
+                ;;
+            *)
+                oc_data="{\"status\":\"error\",\"reason\":\"http_error\",\"error\":\"OpenCode Go usage service returned HTTP $oc_http_code. Try again shortly.\"}"
+                ;;
+        esac
     else
-        oc_data="{\"status\":\"unavailable\",\"error\":\"Set OpenCode credentials in plugin settings\"}"
+        oc_data='{"status":"unavailable","reason":"not_authenticated","error":"OpenCode Go is not connected. Run opencode /connect and choose OpenCode Go, or set an API key in plugin settings."}'
     fi
 fi
 
