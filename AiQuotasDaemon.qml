@@ -18,8 +18,7 @@ PluginComponent {
     property bool grokEnabled: pluginData.grokEnabled !== false
     property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
     property string openRouterApiKey: pluginData.openRouterApiKey || ""
-    property string openCodeWorkspaceId: pluginData.openCodeWorkspaceId || ""
-    property string openCodeAuthCookie: pluginData.openCodeAuthCookie || ""
+    property string openCodeApiKey: pluginData.openCodeApiKey || ""
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -56,8 +55,7 @@ PluginComponent {
             "AIQ_FORCE_REFRESH=" + (root.activeForce ? "1" : "0"),
             "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
             "OPENROUTER_API_KEY=" + root.openRouterApiKey,
-            "OPENCODE_GO_WORKSPACE_ID=" + root.openCodeWorkspaceId,
-            "OPENCODE_GO_AUTH_COOKIE=" + root.openCodeAuthCookie,
+            "OPENCODE_GO_API_KEY=" + root.openCodeApiKey,
             "sh", root.pluginDir + "fetch-usage.sh"
         ]
         stdout: SplitParser {
@@ -84,7 +82,7 @@ PluginComponent {
     function fetchSignature() {
         return [claudeEnabled, codexEnabled, openCodeEnabled, deepSeekEnabled,
             openRouterEnabled, antigravityEnabled, grokEnabled, deepSeekApiKey,
-            openRouterApiKey, openCodeWorkspaceId, openCodeAuthCookie].join("\u001f")
+            openRouterApiKey, openCodeApiKey].join("\u001f")
     }
 
     function requestFetch(force) {
