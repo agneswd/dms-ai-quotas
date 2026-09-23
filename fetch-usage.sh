@@ -306,9 +306,29 @@ fi
 oc_data='{"status":"unavailable"}'
 if [ "$oc_enabled" = "1" ]; then
     oc_key="${OPENCODE_GO_API_KEY:-${OPENCODE_API_KEY:-}}"
+    oc_data_dir="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}"
     if [ -z "$oc_key" ]; then
-        oc_data_dir="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}"
         oc_key=$(jq -r '."opencode-go".key // empty' "$oc_data_dir/auth.json" 2>/dev/null)
+    fi
+    # opencode v2: read from opencode.db if auth.json has no key
+    if [ -z "$oc_key" ]; then
+        oc_db="$oc_data_dir/opencode.db"
+        if [ -f "$oc_db" ]; then
+            if command -v sqlite3 >/dev/null 2>&1; then
+                oc_key=$(sqlite3 "$oc_db" \
+                    "select json_extract(value,'$.key') from credential where integration_id='opencode-go' and active=1" \
+                    2>/dev/null)
+            elif command -v python3 >/dev/null 2>&1; then
+                oc_key=$(python3 -c "
+import sqlite3, json, os, sys
+try:
+    con = sqlite3.connect('file:' + sys.argv[1] + '?mode=ro&immutable=1', uri=True, timeout=5)
+    row = con.execute(\"select value from credential where integration_id='opencode-go' and active=1\").fetchone()
+    if row: print(json.loads(row[0]).get('key',''))
+except: pass
+" "$oc_db" 2>/dev/null)
+            fi
+        fi
     fi
 
     if [ -n "$oc_key" ]; then
