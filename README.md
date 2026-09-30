@@ -18,7 +18,7 @@ Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, OpenRouter, and Grok usa
 | **OpenRouter** | Account credit balance | Remaining credits, purchased total, and usage |
 | **Grok** | Usage limits | Shared weekly usage % with reset countdown, from local `grok login` |
 
-The plugin is designed to be extensible - additional AI coding providers can be added in the future.
+AI Quotas combines seven providers in one bar widget. It includes OpenCode Go quotas, Grok quotas, and DeepSeek balances alongside Claude, Codex, OpenRouter, and Antigravity. You can pin several limits across providers in one pill and change between used and remaining percentages.
 
 ## Features
 
@@ -47,7 +47,7 @@ The plugin is designed to be extensible - additional AI coding providers can be 
 - For Grok: the Grok CLI installed and authenticated with `grok login`
 - For Codex: the Codex CLI installed and authenticated with `codex login`
 - For OpenCode: the OpenCode CLI connected with `/connect` to OpenCode Go, or an API key from [opencode.ai](https://opencode.ai)
-- For Antigravity: `secret-tool` and an authenticated Antigravity CLI (`agy`)
+- For Antigravity only: `secret-tool` from libsecret and an authenticated Antigravity CLI (`agy`). Other providers do not need libsecret.
 
 ## Install
 
@@ -107,6 +107,14 @@ Add the plugin's capture script as your Claude Code status line in `~/.claude/se
 ```
 
 Claude Code provides quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into that script instead of replacing it.
+
+### Antigravity credentials
+
+Antigravity needs `secret-tool` from libsecret to read the `gemini` / `antigravity` keyring entry. The plugin uses the access token that `agy` stores there. It sends that token only to `daily-cloudcode-pa.googleapis.com`, with the `dms-ai-quotas` user agent.
+
+The plugin does not refresh tokens. If the token expires, open `agy` to refresh its login, then refresh AI Quotas. Start `agy` and follow its sign-in prompt if you have not signed in. Disable Antigravity in plugin settings if you do not use it.
+
+The plugin stores usage results under `$XDG_CACHE_HOME/dms-ai-quotas`, or `~/.cache/dms-ai-quotas` by default. It does not cache Antigravity access tokens, refresh tokens, or OAuth client secrets. Older versions stored Antigravity state in `~/.cache/agy-usage`. This version does not read that directory. You can remove that old state if no other tool uses it.
 
 ## How to get OpenCode credentials
 

@@ -437,12 +437,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedClaudeEntries()
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/claude-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -469,12 +469,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedCodexEntries()
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/codex-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -501,12 +501,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedOpenCodeEntries()
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/opencode-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -533,12 +533,12 @@ PluginComponent {
                 Repeater {
                     model: root.hasDeepSeek() ? [1] : []
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/deepseek-logo.svg"
-                            sourceSize.width: 14
-                            sourceSize.height: 14
-                            width: 14; height: 14
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -565,12 +565,12 @@ PluginComponent {
                 Repeater {
                     model: root.hasOpenRouter() ? [1] : []
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/openrouter-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -597,12 +597,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedGrokEntries()
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/grok-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -629,12 +629,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedAntigravityEntries()
                     delegate: Row {
-                        spacing: 4
+                        spacing: Theme.spacingXS
                         Image {
                             source: root.pluginDir + "assets/antigravity-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -675,12 +675,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedClaudeEntries()
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/claude-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -696,12 +696,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedCodexEntries()
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/codex-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -717,12 +717,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedOpenCodeEntries()
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/opencode-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -738,12 +738,12 @@ PluginComponent {
                 Repeater {
                     model: root.hasDeepSeek() ? [1] : []
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/deepseek-logo.svg"
-                            sourceSize.width: 12
-                            sourceSize.height: 12
-                            width: 12; height: 12
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -762,12 +762,12 @@ PluginComponent {
                 Repeater {
                     model: root.hasOpenRouter() ? [1] : []
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/openrouter-logo.svg"
-                            sourceSize.width: 14
-                            sourceSize.height: 14
-                            width: 14; height: 14
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -786,12 +786,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedGrokEntries()
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/grok-logo.svg"
-                            sourceSize.width: 14
-                            sourceSize.height: 14
-                            width: 14; height: 14
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -807,12 +807,12 @@ PluginComponent {
                 Repeater {
                     model: root.pinnedAntigravityEntries()
                     delegate: Column {
-                        spacing: 1
+                        spacing: Theme.spacingXXS
                         Image {
                             source: root.pluginDir + "assets/antigravity-logo.svg"
-                            sourceSize.width: 16
-                            sourceSize.height: 16
-                            width: 16; height: 16
+                            sourceSize.width: Theme.iconSizeSmall
+                            sourceSize.height: Theme.iconSizeSmall
+                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                             fillMode: Image.PreserveAspectFit
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -848,7 +848,7 @@ PluginComponent {
                     Row {
                         id: providerTabsRow
                         width: parent.width
-                        height: 36
+                        height: Theme.iconSize + Theme.spacingM
                         spacing: Theme.spacingXS
 
                         Repeater {
@@ -883,9 +883,9 @@ PluginComponent {
 
                                     Image {
                                         source: root.pluginDir + modelData.icon
-                                        sourceSize.width: 17
-                                        sourceSize.height: 17
-                                        width: 17; height: 17
+                                        sourceSize.width: Theme.iconSizeSmall
+                                        sourceSize.height: Theme.iconSizeSmall
+                                        width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
                                         fillMode: Image.PreserveAspectFit
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -954,16 +954,16 @@ PluginComponent {
                                         spacing: Theme.spacingM
                                         Image {
                                             source: root.pluginDir + "assets/claude-logo.svg"
-                                            sourceSize.width: 28
-                                            sourceSize.height: 28
-                                            width: 28; height: 28
+                                            sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                            sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                            width: Theme.iconSize + Theme.spacingXS; height: width
                                             fillMode: Image.PreserveAspectFit
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Column {
-                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                             anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 2
+                                            spacing: Theme.spacingXXS
                                             StyledText {
                                                 text: root.claudeLabel(modelData)
                                                 color: Theme.surfaceVariantText
@@ -977,7 +977,7 @@ PluginComponent {
                                             }
                                         }
                                         Rectangle {
-                                            width: 28; height: 28; radius: 14
+                                            width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                             color: root.isPinned("claude", modelData.name)
                                                 ? Theme.surfaceSelected
                                                 : (claudePinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -997,7 +997,7 @@ PluginComponent {
                                             DankIcon {
                                                 anchors.centerIn: parent
                                                 name: "push_pin"
-                                                size: 17
+                                                size: Theme.iconSizeSmall
                                                 color: root.isPinned("claude", modelData.name)
                                                     ? Theme.primary : Theme.surfaceVariantText
                                                 rotation: root.isPinned("claude", modelData.name) ? 0 : 45
@@ -1007,8 +1007,8 @@ PluginComponent {
                                     Rectangle {
                                         id: claudeProgressTrack
                                         width: parent.width
-                                        height: 8
-                                        radius: 4
+                                        height: Theme.spacingS
+                                        radius: Math.min(Theme.cornerRadius, height / 2)
                                         color: Theme.outlineVariant
                                         Rectangle {
                                             width: claudeProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
@@ -1083,16 +1083,16 @@ PluginComponent {
                                         spacing: Theme.spacingM
                                         Image {
                                             source: root.pluginDir + "assets/codex-logo.svg"
-                                            sourceSize.width: 28
-                                            sourceSize.height: 28
-                                            width: 28; height: 28
+                                            sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                            sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                            width: Theme.iconSize + Theme.spacingXS; height: width
                                             fillMode: Image.PreserveAspectFit
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Column {
-                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                             anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 2
+                                            spacing: Theme.spacingXXS
                                             StyledText {
                                                 text: root.codexLabel(modelData)
                                                 color: Theme.surfaceVariantText
@@ -1106,7 +1106,7 @@ PluginComponent {
                                             }
                                         }
                                         Rectangle {
-                                            width: 28; height: 28; radius: 14
+                                            width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                             color: root.isPinned("codex", modelData.name)
                                                 ? Theme.surfaceSelected
                                                 : (codexPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1126,7 +1126,7 @@ PluginComponent {
                                             DankIcon {
                                                 anchors.centerIn: parent
                                                 name: "push_pin"
-                                                size: 17
+                                                size: Theme.iconSizeSmall
                                                 color: root.isPinned("codex", modelData.name)
                                                     ? Theme.primary : Theme.surfaceVariantText
                                                 rotation: root.isPinned("codex", modelData.name) ? 0 : 45
@@ -1136,8 +1136,8 @@ PluginComponent {
                                     Rectangle {
                                         id: codexProgressTrack
                                         width: parent.width
-                                        height: 8
-                                        radius: 4
+                                        height: Theme.spacingS
+                                        radius: Math.min(Theme.cornerRadius, height / 2)
                                         color: Theme.outlineVariant
                                         Rectangle {
                                             width: codexProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
@@ -1216,16 +1216,16 @@ PluginComponent {
                                                 spacing: Theme.spacingM
                                                 Image {
                                                     source: root.pluginDir + "assets/antigravity-logo.svg"
-                                                    sourceSize.width: 28
-                                                    sourceSize.height: 28
-                                                    width: 28; height: 28
+                                                    sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                                    sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                                    width: Theme.iconSize + Theme.spacingXS; height: width
                                                     fillMode: Image.PreserveAspectFit
                                                     anchors.verticalCenter: parent.verticalCenter
                                                 }
                                                 Column {
-                                                    width: parent.width - 40 - 28 - Theme.spacingM
+                                                    width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    spacing: 2
+                                                    spacing: Theme.spacingXXS
                                                     StyledText {
                                                         text: modelData.name
                                                         color: Theme.surfaceVariantText
@@ -1240,7 +1240,7 @@ PluginComponent {
                                                     }
                                                 }
                                                 Rectangle {
-                                                    width: 28; height: 28; radius: 14
+                                                    width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                                     color: root.isPinned("antigravity", modelData.rawName)
                                                         ? Theme.surfaceSelected
                                                         : (agyPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1260,7 +1260,7 @@ PluginComponent {
                                                     DankIcon {
                                                         anchors.centerIn: parent
                                                         name: "push_pin"
-                                                        size: 17
+                                                        size: Theme.iconSizeSmall
                                                         color: root.isPinned("antigravity", modelData.rawName)
                                                             ? Theme.primary : Theme.surfaceVariantText
                                                         rotation: root.isPinned("antigravity", modelData.rawName) ? 0 : 45
@@ -1270,8 +1270,8 @@ PluginComponent {
                                             Rectangle {
                                                 id: agyProgressTrack
                                                 width: parent.width
-                                                height: 8
-                                                radius: 4
+                                                height: Theme.spacingS
+                                                radius: Math.min(Theme.cornerRadius, height / 2)
                                                 color: Theme.outlineVariant
                                                 Rectangle {
                                                     width: agyProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
@@ -1359,16 +1359,16 @@ PluginComponent {
                                         spacing: Theme.spacingM
                                         Image {
                                             source: root.pluginDir + "assets/opencode-logo.svg"
-                                            sourceSize.width: 28
-                                            sourceSize.height: 28
-                                            width: 28; height: 28
+                                            sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                            sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                            width: Theme.iconSize + Theme.spacingXS; height: width
                                             fillMode: Image.PreserveAspectFit
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Column {
-                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                             anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 2
+                                            spacing: Theme.spacingXXS
                                             StyledText {
                                                 text: root.ocLabel(modelData)
                                                 color: Theme.surfaceVariantText
@@ -1382,7 +1382,7 @@ PluginComponent {
                                             }
                                         }
                                         Rectangle {
-                                            width: 28; height: 28; radius: 14
+                                            width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                             color: root.isPinned("opencode", modelData.name)
                                                 ? Theme.surfaceSelected
                                                 : (openCodePinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1402,7 +1402,7 @@ PluginComponent {
                                             DankIcon {
                                                 anchors.centerIn: parent
                                                 name: "push_pin"
-                                                size: 17
+                                                size: Theme.iconSizeSmall
                                                 color: root.isPinned("opencode", modelData.name)
                                                     ? Theme.primary : Theme.surfaceVariantText
                                                 rotation: root.isPinned("opencode", modelData.name) ? 0 : 45
@@ -1412,8 +1412,8 @@ PluginComponent {
                                     Rectangle {
                                         id: openCodeProgressTrack
                                         width: parent.width
-                                        height: 8
-                                        radius: 4
+                                        height: Theme.spacingS
+                                        radius: Math.min(Theme.cornerRadius, height / 2)
                                         color: Theme.outlineVariant
                                         Rectangle {
                                             width: openCodeProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100
@@ -1487,16 +1487,16 @@ PluginComponent {
                                     spacing: Theme.spacingM
                                     Image {
                                             source: root.pluginDir + "assets/deepseek-logo.svg"
-                                        sourceSize.width: 28
-                                        sourceSize.height: 28
-                                        width: 28; height: 28
+                                        sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                        sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                        width: Theme.iconSize + Theme.spacingXS; height: width
                                         fillMode: Image.PreserveAspectFit
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                     Column {
-                                        width: parent.width - 40 - 28 - Theme.spacingM
+                                        width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                         anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
+                                        spacing: Theme.spacingXXS
                                         StyledText { text: "Available balance"; color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
                                         StyledText { text: root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeLarge; font.weight: Font.Bold }
                                         StyledText {
@@ -1511,7 +1511,7 @@ PluginComponent {
                                         }
                                     }
                                     Rectangle {
-                                        width: 28; height: 28; radius: 14
+                                        width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                         color: root.isPinned("deepseek", "balance")
                                             ? Theme.surfaceSelected
                                             : (deepSeekPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1531,7 +1531,7 @@ PluginComponent {
                                         DankIcon {
                                             anchors.centerIn: parent
                                             name: "push_pin"
-                                            size: 17
+                                            size: Theme.iconSizeSmall
                                             color: root.isPinned("deepseek", "balance")
                                                 ? Theme.primary : Theme.surfaceVariantText
                                             rotation: root.isPinned("deepseek", "balance") ? 0 : 45
@@ -1588,16 +1588,16 @@ PluginComponent {
                                     spacing: Theme.spacingM
                                     Image {
                                         source: root.pluginDir + "assets/openrouter-logo.svg"
-                                        sourceSize.width: 28
-                                        sourceSize.height: 28
-                                        width: 28; height: 28
+                                        sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                        sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                        width: Theme.iconSize + Theme.spacingXS; height: width
                                         fillMode: Image.PreserveAspectFit
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                     Column {
-                                        width: parent.width - 40 - 28 - Theme.spacingM
+                                        width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                         anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
+                                        spacing: Theme.spacingXXS
                                         StyledText { text: "Available balance"; color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall }
                                         StyledText { text: root.fmtBal(modelData); color: Theme.surfaceText; font.pixelSize: Theme.fontSizeLarge; font.weight: Font.Bold }
                                         StyledText {
@@ -1612,7 +1612,7 @@ PluginComponent {
                                         }
                                     }
                                     Rectangle {
-                                        width: 28; height: 28; radius: 14
+                                        width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                         color: root.isPinned("openrouter", "balance")
                                             ? Theme.surfaceSelected
                                             : (openRouterPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1632,7 +1632,7 @@ PluginComponent {
                                         DankIcon {
                                             anchors.centerIn: parent
                                             name: "push_pin"
-                                            size: 17
+                                            size: Theme.iconSizeSmall
                                             color: root.isPinned("openrouter", "balance")
                                                 ? Theme.primary : Theme.surfaceVariantText
                                             rotation: root.isPinned("openrouter", "balance") ? 0 : 45
@@ -1692,16 +1692,16 @@ PluginComponent {
                                         spacing: Theme.spacingM
                                         Image {
                                             source: root.pluginDir + "assets/grok-logo.svg"
-                                            sourceSize.width: 28
-                                            sourceSize.height: 28
-                                            width: 28; height: 28
+                                            sourceSize.width: Theme.iconSize + Theme.spacingXS
+                                            sourceSize.height: Theme.iconSize + Theme.spacingXS
+                                            width: Theme.iconSize + Theme.spacingXS; height: width
                                             fillMode: Image.PreserveAspectFit
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Column {
-                                            width: parent.width - 40 - 28 - Theme.spacingM
+                                            width: parent.width - (Theme.iconSize + Theme.spacingXS) * 2 - Theme.spacingM * 2
                                             anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 2
+                                            spacing: Theme.spacingXXS
                                             StyledText {
                                                 text: root.grokLabel(modelData)
                                                 color: Theme.surfaceVariantText
@@ -1715,7 +1715,7 @@ PluginComponent {
                                             }
                                         }
                                         Rectangle {
-                                            width: 28; height: 28; radius: 14
+                                            width: Theme.iconSize + Theme.spacingXS; height: width; radius: Theme.cornerRadius
                                             color: root.isPinned("grok", modelData.name)
                                                 ? Theme.surfaceSelected
                                                 : (grokPinArea.containsMouse ? Theme.surfaceHover : Theme.surfaceContainerHighest)
@@ -1735,7 +1735,7 @@ PluginComponent {
                                             DankIcon {
                                                 anchors.centerIn: parent
                                                 name: "push_pin"
-                                                size: 17
+                                                size: Theme.iconSizeSmall
                                                 color: root.isPinned("grok", modelData.name)
                                                     ? Theme.primary : Theme.surfaceVariantText
                                                 rotation: root.isPinned("grok", modelData.name) ? 0 : 45
@@ -1745,8 +1745,8 @@ PluginComponent {
                                     Rectangle {
                                         id: grokProgressTrack
                                         width: parent.width
-                                        height: 8
-                                        radius: 4
+                                        height: Theme.spacingS
+                                        radius: Math.min(Theme.cornerRadius, height / 2)
                                         color: Theme.outlineVariant
                                         Rectangle {
                                             width: grokProgressTrack.width * root.limitProgress(modelData.percentUsed || 0) / 100

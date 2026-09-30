@@ -21,6 +21,7 @@
 #   AIQ_OPENCODE_ENABLED      "1" to fetch OpenCode (default: "1")
 #   AIQ_DEEPSEEK_ENABLED      "1" to fetch DeepSeek (default: "1")
 #   AIQ_OPENROUTER_ENABLED    "1" to fetch OpenRouter (default: "1")
+#   AIQ_ANTIGRAVITY_ENABLED   "1" to fetch Antigravity (default: "1")
 #   AIQ_GROK_ENABLED          "1" to fetch Grok (default: "1")
 #   DEEPSEEK_API_KEY          DeepSeek API key
 #   OPENROUTER_API_KEY        OpenRouter API key (management key only if credits are denied)
@@ -561,135 +562,95 @@ fi
 agy_data='{"status":"unavailable"}'
 if [ "$agy_enabled" = "1" ]; then
     if command -v secret-tool >/dev/null 2>&1; then
-        KEYRING_JSON=$(secret-tool lookup service gemini username antigravity 2>/dev/null || true)
-        if [ -n "$KEYRING_JSON" ]; then
-            ACCESS_TOKEN=$(printf '%s' "$KEYRING_JSON" | jq -r '.token.access_token // empty' 2>/dev/null || true)
-            REFRESH_TOKEN=$(printf '%s' "$KEYRING_JSON" | jq -r '.token.refresh_token // empty' 2>/dev/null || true)
-            EXPIRY_RAW=$(printf '%s' "$KEYRING_JSON" | jq -r '.token.expiry // empty' 2>/dev/null || true)
-            ACCOUNT=$(printf '%s' "$KEYRING_JSON" | jq -r '.account // .email // empty' 2>/dev/null || true)
-            [ -z "$ACCOUNT" ] && [ -f "$HOME/.gemini/google_accounts.json" ] && \
-                ACCOUNT=$(jq -r '.active // empty' "$HOME/.gemini/google_accounts.json" 2>/dev/null || true)
+        agy_keyring=$(secret-tool lookup service gemini username antigravity 2>/dev/null || true)
+        agy_token=$(printf '%s' "$agy_keyring" | jq -r '.token.access_token // empty' 2>/dev/null)
+        agy_expiry=$(printf '%s' "$agy_keyring" | jq -r '.token.expiry // empty' 2>/dev/null)
+        agy_account=$(printf '%s' "$agy_keyring" | jq -r '.account // .email // empty' 2>/dev/null)
+        agy_exp_epoch=0
+        case "$agy_expiry" in
+            '') ;;
+            *[!0-9]*) agy_exp_epoch=$(date -d "$agy_expiry" +%s 2>/dev/null || printf '0') ;;
+            *)
+                if [ "${#agy_expiry}" -ge 13 ]; then
+                    agy_exp_epoch=$((agy_expiry / 1000))
+                else
+                    agy_exp_epoch="$agy_expiry"
+                fi
+                ;;
+        esac
 
-            token_valid() {
-                local exp="$1"
-                [ -z "$exp" ] && return 1
-                local exp_epoch=0
-                case "$exp" in
-                    ''|*[!0-9]*)
-                        exp_epoch=$(date -d "$exp" +%s 2>/dev/null || echo 0) ;;
-                    *)
-                        if [ "${#exp}" -ge 13 ]; then
-                            exp_epoch=$(( exp / 1000 ))
-                        else
-                            exp_epoch="$exp"
-                        fi ;;
+        if [ -z "$agy_token" ]; then
+            agy_data='{"status":"unavailable","reason":"not_authenticated","error":"Antigravity is not logged in. Start agy and sign in, then refresh AI Quotas."}'
+        elif [ "$agy_exp_epoch" -le "$((now + 60))" ] 2>/dev/null; then
+            agy_data='{"status":"error","reason":"auth_expired","error":"Antigravity login expired. Open agy to refresh the login, then refresh AI Quotas."}'
+        else
+            # Let agy manage its login. Keep the token out of command arguments and cache files.
+            agy_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-antigravity-auth.XXXXXX") || exit 2
+            trap 'rm -f "$agy_auth"' EXIT HUP INT TERM
+            printf 'Authorization: Bearer %s\n' "$agy_token" > "$agy_auth"
+
+            agy_response=$(curl -s --max-time 12 -w '\n%{http_code}' \
+                -H "@$agy_auth" \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/json" \
+                -H "User-Agent: dms-ai-quotas" \
+                "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist" \
+                --data '{"metadata":{"ideType":"ANTIGRAVITY"}}' 2>/dev/null)
+            agy_http_code=$(printf '%s\n' "$agy_response" | tail -n 1)
+            agy_body=$(printf '%s\n' "$agy_response" | sed '$d')
+            agy_project=""
+            agy_plan=""
+            case "$agy_http_code" in
+                2??)
+                    agy_project=$(printf '%s' "$agy_body" | jq -r 'select((.cloudaicompanionProject | type) == "string") | .cloudaicompanionProject' 2>/dev/null)
+                    agy_plan=$(printf '%s' "$agy_body" | jq -r '.paidTier.name // .currentTier.name // empty' 2>/dev/null)
+                    ;;
+            esac
+
+            if [ -n "$agy_project" ]; then
+                agy_response=$(curl -s --max-time 12 -w '\n%{http_code}' \
+                    -H "@$agy_auth" \
+                    -H "Content-Type: application/json" \
+                    -H "Accept: application/json" \
+                    -H "User-Agent: dms-ai-quotas" \
+                    "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary" \
+                    --data "$(jq -n --arg p "$agy_project" '{project:$p}')" 2>/dev/null)
+                agy_http_code=$(printf '%s\n' "$agy_response" | tail -n 1)
+                agy_body=$(printf '%s\n' "$agy_response" | sed '$d')
+                case "$agy_http_code" in
+                    2??)
+                        agy_data=$(printf '%s' "$agy_body" | jq -c --arg email "$agy_account" --arg plan "$agy_plan" '
+                            if (.groups | type) != "array" then error("missing quota groups") else
+                            {
+                                status: "ok",
+                                email: $email,
+                                plan: $plan,
+                                entries: [.groups[] | .displayName as $groupName | .buckets[] | {
+                                    name: ($groupName + " - " + .displayName),
+                                    percentUsed: ((1 - (.remainingFraction // 1.0)) * 100 | round),
+                                    resetAt: ((.resetTime | fromdateiso8601) // 0)
+                                }]
+                            }
+                            end
+                        ' 2>/dev/null) || agy_data='{"status":"error","error":"Could not parse Antigravity quota response"}'
+                        ;;
                 esac
-                [ "$exp_epoch" -gt "$(( $(date +%s) + 60 ))" ] 2>/dev/null
-            }
-
-            CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agy-usage"
-            mkdir -p "$CACHE_DIR"
-            chmod 700 "$CACHE_DIR" 2>/dev/null || true
-            TOKEN_CACHE="$CACHE_DIR/token.json"
-            SECRET_CACHE="$CACHE_DIR/client_secret.txt"
-            PROJECT_CACHE="$CACHE_DIR/project.txt"
-            PLAN_CACHE="$CACHE_DIR/plan.txt"
-            chmod 600 "$TOKEN_CACHE" "$SECRET_CACHE" 2>/dev/null || true
-
-            if ! token_valid "$EXPIRY_RAW"; then
-                if [ -f "$TOKEN_CACHE" ]; then
-                    c_at=$(jq -r '.access_token // empty' "$TOKEN_CACHE" 2>/dev/null || true)
-                    c_ex=$(jq -r '.expiry // 0' "$TOKEN_CACHE" 2>/dev/null || echo 0)
-                    if [ -n "$c_at" ] && token_valid "$c_ex"; then
-                        ACCESS_TOKEN="$c_at"
-                        EXPIRY_RAW="$c_ex"
-                    fi
-                fi
-            fi
-
-            if ! token_valid "$EXPIRY_RAW" && [ -n "$REFRESH_TOKEN" ]; then
-                secrets=""
-                if [ -s "$SECRET_CACHE" ]; then
-                    secrets=$(cat "$SECRET_CACHE")
-                else
-                    bin_path=$(command -v agy 2>/dev/null || true)
-                    if [ -n "$bin_path" ] && [ -f "$bin_path" ]; then
-                        secrets=$(grep -aoE 'GOCSPX-[A-Za-z0-9_-]{28}' "$bin_path" 2>/dev/null | sort -u || true)
-                    fi
-                fi
-
-                for secret in $secrets; do
-                    resp=$(curl -s --max-time 15 "https://oauth2.googleapis.com/token" \
-                        --data-urlencode "client_id=1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com" \
-                        --data-urlencode "client_secret=$secret" \
-                        --data-urlencode "refresh_token=$REFRESH_TOKEN" \
-                        --data-urlencode "grant_type=refresh_token" 2>/dev/null) || continue
-                    at=$(printf '%s' "$resp" | jq -r '.access_token // empty' 2>/dev/null || true)
-                    if [ -n "$at" ]; then
-                        ein=$(printf '%s' "$resp" | jq -r '.expires_in // 3600' 2>/dev/null || echo 3600)
-                        ACCESS_TOKEN="$at"
-                        EXPIRY_RAW=$(( $(date +%s) + ein ))
-                        printf '%s' "$secret" > "$SECRET_CACHE" 2>/dev/null || true
-                        jq -n --arg t "$at" --argjson e "$EXPIRY_RAW" '{access_token:$t, expiry:$e}' > "$TOKEN_CACHE" 2>/dev/null || true
-                        break
-                    fi
-                done
-            fi
-
-            PROJECT=""
-            [ -f "$PROJECT_CACHE" ] && PROJECT=$(cat "$PROJECT_CACHE" 2>/dev/null || true)
-            PLAN=""
-            if [ -z "$PROJECT" ]; then
-                LCA=$(curl -s --max-time 12 \
-                    -H "Authorization: Bearer $ACCESS_TOKEN" \
-                    -H "Content-Type: application/json" \
-                    -H "Accept: application/json" \
-                    -H "User-Agent: antigravity/cli/1.0.8 linux/amd64" \
-                    -X POST "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist" \
-                    --data '{"metadata":{"ideType":"ANTIGRAVITY"}}' 2>/dev/null || true)
-                PROJECT=$(printf '%s' "$LCA" | jq -r '.cloudaicompanionProject // empty' 2>/dev/null || true)
-                PLAN=$(printf '%s' "$LCA" | jq -r '(.paidTier.name // .currentTier.name) // empty' 2>/dev/null || true)
-                if [ -n "$PROJECT" ]; then
-                    printf '%s' "$PROJECT" > "$PROJECT_CACHE"
-                    [ -n "$PLAN" ] && printf '%s' "$PLAN" > "$PLAN_CACHE"
-                fi
-            fi
-
-            if [ -z "$PLAN" ] && [ -f "$PLAN_CACHE" ]; then
-                PLAN=$(cat "$PLAN_CACHE" 2>/dev/null || true)
-            fi
-
-            if [ -n "$PROJECT" ]; then
-                resp=$(curl -s --max-time 12 \
-                    -H "Authorization: Bearer $ACCESS_TOKEN" \
-                    -H "Content-Type: application/json" \
-                    -H "Accept: application/json" \
-                    -H "User-Agent: antigravity/cli/1.0.8 linux/amd64" \
-                    -X POST "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary" \
-                    --data "$(jq -n --arg p "$PROJECT" '{project:$p}')" 2>/dev/null || true)
-                
-                if printf '%s' "$resp" | jq -e '.groups' >/dev/null 2>&1; then
-                    agy_data=$(printf '%s' "$resp" | jq -c --arg email "$ACCOUNT" --arg plan "$PLAN" '{
-                        status: "ok",
-                        email: $email,
-                        plan: $plan,
-                        entries: [.groups[] | .displayName as $groupName | .buckets[] | {
-                            name: ($groupName + " - " + .displayName),
-                            percentUsed: ((1 - (.remainingFraction // 1.0)) * 100 | round),
-                            resetAt: ((.resetTime | fromdateiso8601) // 0)
-                        }]
-                    }' 2>/dev/null) || agy_data='{"status":"error","error":"Could not parse Antigravity quota response"}'
-                else
-                    agy_data='{"status":"error","error":"Failed to retrieve Antigravity quota summary"}'
-                fi
-            else
+            elif [ "$agy_http_code" != "000" ]; then
                 agy_data='{"status":"error","error":"Failed to load Antigravity companion project"}'
             fi
-        else
-            agy_data='{"status":"error","reason":"not_authenticated","error":"Antigravity is not logged in. Run agy login in a terminal, then refresh AI Quotas."}'
+
+            case "$agy_http_code" in
+                2??) ;;
+                401) agy_data='{"status":"error","reason":"auth_expired","error":"Antigravity login expired. Open agy to refresh the login, then refresh AI Quotas."}' ;;
+                403) agy_data='{"status":"error","reason":"access_denied","error":"Antigravity quota access was denied for this account."}' ;;
+                000|'') agy_data='{"status":"error","reason":"network","error":"Could not reach Antigravity. Check your connection, then refresh AI Quotas."}' ;;
+                *) agy_data='{"status":"error","reason":"http_error","error":"Antigravity quota request failed. Try again shortly."}' ;;
+            esac
+            rm -f "$agy_auth"
+            trap - EXIT HUP INT TERM
         fi
     else
-        agy_data='{"status":"error","error":"secret-tool is not installed. Please install libsecret."}'
+        agy_data='{"status":"unavailable","reason":"missing_dependency","error":"Antigravity requires secret-tool. Install libsecret, or disable Antigravity in plugin settings."}'
     fi
 fi
 
