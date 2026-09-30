@@ -51,8 +51,14 @@ run_fetch() {
 for expiry in 2030-01-01T00:00:00Z 1893456000 1893456000000; do
     set_token "$expiry"
     run_fetch | jq -e '.antigravity.status == "ok" and .antigravity.plan == "Pro" and .antigravity.entries == [{name:"Claude - Usage",percentUsed:25,resetAt:1893456000}]' >/dev/null
-    ! grep -Eq 'fixture-access-token|fixture-refresh-token|antigravity/cli|oauth2.googleapis.com' "$requests"
-    ! grep -rEq 'fixture-access-token|fixture-refresh-token' "$test_dir/cache"
+    if grep -Eq 'fixture-access-token|fixture-refresh-token|antigravity/cli|oauth2.googleapis.com' "$requests"; then
+        printf '%s\n' 'Unexpected credential handling in Antigravity requests.' >&2
+        exit 1
+    fi
+    if grep -rEq 'fixture-access-token|fixture-refresh-token' "$test_dir/cache"; then
+        printf '%s\n' 'Antigravity credentials were written to the cache.' >&2
+        exit 1
+    fi
 done
 
 for expiry in 2000-01-01T00:00:00Z invalid ''; do
