@@ -43,21 +43,20 @@ PluginComponent {
 
     Process {
         id: fetchProcess
-        command: [
-            "env",
-            "AIQ_CLAUDE_ENABLED=" + (root.claudeEnabled ? "1" : "0"),
-            "AIQ_CODEX_ENABLED=" + (root.codexEnabled ? "1" : "0"),
-            "AIQ_OPENCODE_ENABLED=" + (root.openCodeEnabled ? "1" : "0"),
-            "AIQ_DEEPSEEK_ENABLED=" + (root.deepSeekEnabled ? "1" : "0"),
-            "AIQ_OPENROUTER_ENABLED=" + (root.openRouterEnabled ? "1" : "0"),
-            "AIQ_GROK_ENABLED=" + (root.grokEnabled ? "1" : "0"),
-            "AIQ_ANTIGRAVITY_ENABLED=" + (root.antigravityEnabled ? "1" : "0"),
-            "AIQ_FORCE_REFRESH=" + (root.activeForce ? "1" : "0"),
-            "DEEPSEEK_API_KEY=" + root.deepSeekApiKey,
-            "OPENROUTER_API_KEY=" + root.openRouterApiKey,
-            "OPENCODE_GO_API_KEY=" + root.openCodeApiKey,
-            "sh", root.pluginDir + "fetch-usage.sh"
-        ]
+        command: ["sh", root.pluginDir + "fetch-usage.sh"]
+        environment: ({
+            AIQ_CLAUDE_ENABLED: root.claudeEnabled ? "1" : "0",
+            AIQ_CODEX_ENABLED: root.codexEnabled ? "1" : "0",
+            AIQ_OPENCODE_ENABLED: root.openCodeEnabled ? "1" : "0",
+            AIQ_DEEPSEEK_ENABLED: root.deepSeekEnabled ? "1" : "0",
+            AIQ_OPENROUTER_ENABLED: root.openRouterEnabled ? "1" : "0",
+            AIQ_GROK_ENABLED: root.grokEnabled ? "1" : "0",
+            AIQ_ANTIGRAVITY_ENABLED: root.antigravityEnabled ? "1" : "0",
+            AIQ_FORCE_REFRESH: root.activeForce ? "1" : "0",
+            DEEPSEEK_API_KEY: root.deepSeekApiKey,
+            OPENROUTER_API_KEY: root.openRouterApiKey,
+            OPENCODE_GO_API_KEY: root.openCodeApiKey
+        })
         stdout: SplitParser {
             onRead: line => {
                 try {
