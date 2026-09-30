@@ -60,6 +60,11 @@ if [ -n "${AIQ_USAGE_MOCK:-}" ] && [ -f "$AIQ_USAGE_MOCK" ]; then
     exit 0
 fi
 
+# Keep provider credentials out of process arguments. Remove private files on exit.
+auth_dir=$(mktemp -d "${TMPDIR:-/tmp}/aiq-auth.XXXXXX") || exit 2
+trap 'rm -rf "$auth_dir"' EXIT
+trap 'exit 1' HUP INT TERM
+
 # ============================================================
 # Claude plan usage from native status data with a five-minute API fallback
 # ============================================================
@@ -103,9 +108,8 @@ if [ "$claude_enabled" = "1" ]; then
        [ $((now - claude_captured)) -ge 300 ] &&
        [ $((now - claude_checked)) -ge 300 ] &&
        [ "$now" -ge "$claude_retry" ]; then
-        claude_headers=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-headers.XXXXXX")
-        claude_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-claude-auth.XXXXXX")
-        trap 'rm -f "$claude_headers" "$claude_auth"' EXIT HUP INT TERM
+        claude_headers="$auth_dir/claude-response"
+        claude_auth="$auth_dir/claude"
         printf 'Authorization: Bearer %s\n' "$access_token" > "$claude_auth"
         claude_response=$(curl -s -m 15 -D "$claude_headers" -w '\n%{http_code}' \
             -H "@$claude_auth" \
@@ -169,7 +173,6 @@ if [ "$claude_enabled" = "1" ]; then
                 ;;
         esac
         rm -f "$claude_headers" "$claude_auth"
-        trap - EXIT HUP INT TERM
 
         fallback_tmp=$(mktemp "$(dirname "$claude_fallback_state")/.claude-fallback.XXXXXX")
         jq -n -c --argjson checked "$now" --argjson retry "$claude_retry_at" \
@@ -211,20 +214,16 @@ if [ "$codex_enabled" = "1" ]; then
     account_id=$(jq -r '.tokens.account_id // empty' "$codex_auth" 2>/dev/null)
 
     if [ -n "$access_token" ]; then
+        codex_headers="$auth_dir/codex"
+        printf 'Authorization: Bearer %s\n' "$access_token" > "$codex_headers"
         if [ -n "$account_id" ]; then
-            codex_response=$(curl -s -m 15 -w '\n%{http_code}' \
-                -H "Authorization: Bearer $access_token" \
-                -H "ChatGPT-Account-Id: $account_id" \
-                -H "Accept: application/json" \
-                -H "User-Agent: codex-cli" \
-                https://chatgpt.com/backend-api/wham/usage 2>/dev/null)
-        else
-            codex_response=$(curl -s -m 15 -w '\n%{http_code}' \
-                -H "Authorization: Bearer $access_token" \
-                -H "Accept: application/json" \
-                -H "User-Agent: codex-cli" \
-                https://chatgpt.com/backend-api/wham/usage 2>/dev/null)
+            printf 'ChatGPT-Account-Id: %s\n' "$account_id" >> "$codex_headers"
         fi
+        codex_response=$(curl -s -m 15 -w '\n%{http_code}' \
+            -H "@$codex_headers" \
+            -H "Accept: application/json" \
+            -H "User-Agent: codex-cli" \
+            https://chatgpt.com/backend-api/wham/usage 2>/dev/null)
 
         codex_http_code=$(printf '%s\n' "$codex_response" | tail -n 1)
         codex_body=$(printf '%s\n' "$codex_response" | sed '$d')
@@ -313,8 +312,10 @@ if [ "$oc_enabled" = "1" ]; then
     fi
 
     if [ -n "$oc_key" ]; then
+        oc_headers="$auth_dir/opencode"
+        printf 'Authorization: Bearer %s\n' "$oc_key" > "$oc_headers"
         oc_response=$(curl -s -m 15 -w '\n%{http_code}' \
-            -H "Authorization: Bearer $oc_key" \
+            -H "@$oc_headers" \
             -H "Accept: application/json" \
             https://opencode.ai/zen/go/v1/usage 2>/dev/null)
         oc_http_code=$(printf '%s\n' "$oc_response" | tail -n 1)
@@ -386,8 +387,10 @@ ds_data='{"status":"unavailable"}'
 if [ "$ds_enabled" = "1" ]; then
     ds_key="${DEEPSEEK_API_KEY:-}"
     if [ -n "$ds_key" ]; then
+        ds_headers="$auth_dir/deepseek"
+        printf 'Authorization: Bearer %s\n' "$ds_key" > "$ds_headers"
         ds_resp=$(curl -s -m 10 \
-            -H "Authorization: Bearer $ds_key" \
+            -H "@$ds_headers" \
             -H "Accept: application/json" \
             https://api.deepseek.com/user/balance 2>/dev/null)
         if [ -n "$ds_resp" ]; then
@@ -412,8 +415,10 @@ or_data='{"status":"unavailable"}'
 if [ "$or_enabled" = "1" ]; then
     or_key="${OPENROUTER_API_KEY:-}"
     if [ -n "$or_key" ]; then
+        or_headers="$auth_dir/openrouter"
+        printf 'Authorization: Bearer %s\n' "$or_key" > "$or_headers"
         or_resp=$(curl -s -m 10 -w '\n%{http_code}' \
-            -H "Authorization: Bearer $or_key" \
+            -H "@$or_headers" \
             -H "Accept: application/json" \
             https://openrouter.ai/api/v1/credits 2>/dev/null)
         or_http_code=$(printf '%s\n' "$or_resp" | tail -n 1)
@@ -467,8 +472,10 @@ if [ "$grok_enabled" = "1" ]; then
     email=$(jq -r 'to_entries[0].value.email // empty' "$grok_auth" 2>/dev/null)
 
     if [ -n "$access_token" ]; then
+        grok_headers="$auth_dir/grok"
+        printf 'Authorization: Bearer %s\n' "$access_token" > "$grok_headers"
         grok_response=$(curl -s -m 15 -w '\n%{http_code}' \
-            -H "Authorization: Bearer $access_token" \
+            -H "@$grok_headers" \
             -H "Accept: application/json" \
             -H "User-Agent: dms-ai-quotas" \
             -H "x-grok-client-mode: cli" \
@@ -585,8 +592,7 @@ if [ "$agy_enabled" = "1" ]; then
             agy_data='{"status":"error","reason":"auth_expired","error":"Antigravity login expired. Open agy to refresh the login, then refresh AI Quotas."}'
         else
             # Let agy manage its login. Keep the token out of command arguments and cache files.
-            agy_auth=$(mktemp "${TMPDIR:-/tmp}/aiq-antigravity-auth.XXXXXX") || exit 2
-            trap 'rm -f "$agy_auth"' EXIT HUP INT TERM
+            agy_auth="$auth_dir/antigravity"
             printf 'Authorization: Bearer %s\n' "$agy_token" > "$agy_auth"
 
             agy_response=$(curl -s --max-time 12 -w '\n%{http_code}' \
@@ -647,7 +653,6 @@ if [ "$agy_enabled" = "1" ]; then
                 *) agy_data='{"status":"error","reason":"http_error","error":"Antigravity quota request failed. Try again shortly."}' ;;
             esac
             rm -f "$agy_auth"
-            trap - EXIT HUP INT TERM
         fi
     else
         agy_data='{"status":"unavailable","reason":"missing_dependency","error":"Antigravity requires secret-tool. Install libsecret, or disable Antigravity in plugin settings."}'
