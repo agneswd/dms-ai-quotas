@@ -112,7 +112,7 @@ Claude Code provides quota data after the first response in a session. If you al
 
 Antigravity needs `secret-tool` from libsecret to read the `gemini` / `antigravity` keyring entry. The plugin uses the access token that `agy` stores there. It sends that token only to `daily-cloudcode-pa.googleapis.com`, with the `dms-ai-quotas` user agent.
 
-The plugin does not refresh tokens. If the token expires, open `agy` to refresh its login, then refresh AI Quotas. Run `agy login` if you have not signed in. Disable Antigravity in plugin settings if you do not use it.
+The plugin does not refresh tokens. If the token expires, open `agy` to refresh its login, then refresh AI Quotas. Start `agy` and follow its sign-in prompt if you have not signed in. Disable Antigravity in plugin settings if you do not use it.
 
 The plugin stores usage results under `$XDG_CACHE_HOME/dms-ai-quotas`, or `~/.cache/dms-ai-quotas` by default. It does not cache Antigravity access tokens, refresh tokens, or OAuth client secrets. Older versions stored Antigravity state in `~/.cache/agy-usage`. This version does not read that directory. You can remove that old state if no other tool uses it.
 

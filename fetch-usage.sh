@@ -580,7 +580,7 @@ if [ "$agy_enabled" = "1" ]; then
         esac
 
         if [ -z "$agy_token" ]; then
-            agy_data='{"status":"unavailable","reason":"not_authenticated","error":"Antigravity is not logged in. Run agy login, then refresh AI Quotas."}'
+            agy_data='{"status":"unavailable","reason":"not_authenticated","error":"Antigravity is not logged in. Start agy and sign in, then refresh AI Quotas."}'
         elif [ "$agy_exp_epoch" -le "$((now + 60))" ] 2>/dev/null; then
             agy_data='{"status":"error","reason":"auth_expired","error":"Antigravity login expired. Open agy to refresh the login, then refresh AI Quotas."}'
         else
