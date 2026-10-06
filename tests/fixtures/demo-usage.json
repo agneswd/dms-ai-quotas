@@ -1,0 +1,40 @@
+{
+  "claude": {"status": "ok", "plan": "Max 5x", "source": "native", "stale": false, "entries": [
+    {"name": "5h", "percentUsed": 38, "resetIn": 9000},
+    {"name": "Weekly", "percentUsed": 61, "resetIn": 260000}
+  ]},
+  "codex": {"status": "ok", "plan": "plus", "entries": [
+    {"name": "5h", "percentUsed": 12, "resetIn": 14000},
+    {"name": "Weekly", "percentUsed": 44, "resetIn": 400000},
+    {"name": "Code Review", "percentUsed": 3, "resetIn": 400000}
+  ]},
+  "opencode": {"status": "ok", "entries": [
+    {"name": "Rolling", "percentUsed": 22, "resetIn": 12000},
+    {"name": "Weekly", "percentUsed": 35.1, "resetIn": 300000},
+    {"name": "Monthly", "percentUsed": 18, "resetIn": 1500000}
+  ]},
+  "zai": {"status": "ok", "plan": "pro", "entries": [
+    {"name": "5h", "percentUsed": 27.5, "resetIn": 8000},
+    {"name": "Weekly", "percentUsed": 52, "resetIn": 350000},
+    {"name": "MCP", "percentUsed": 9, "resetIn": 1800000}
+  ]},
+  "kimi": {"status": "ok", "plan": "intermediate", "entries": [
+    {"name": "5h", "percentUsed": 16, "resetIn": 10000},
+    {"name": "Weekly", "percentUsed": 31, "resetIn": 420000},
+    {"name": "Monthly", "percentUsed": 24, "resetIn": 1700000}
+  ]},
+  "deepseek": {"status": "ok", "isAvailable": true, "balances": [
+    {"currency": "USD", "total": "18.42", "granted": "0.00", "toppedUp": "18.42"}
+  ]},
+  "openrouter": {"status": "ok", "balances": [
+    {"currency": "USD", "total": "9.66", "purchased": "10", "used": "0.34"}
+  ]},
+  "grok": {"status": "ok", "plan": "SuperGrok", "entries": [
+    {"name": "Billing", "kind": "plan", "percentUsed": 62, "resetIn": 500000}
+  ]},
+  "antigravity": {"status": "ok", "plan": "Pro", "entries": [
+    {"name": "Gemini Models - Five Hour Limit Remaining", "percentUsed": 20, "resetIn": 11000},
+    {"name": "Gemini Models - Weekly Limit Remaining", "percentUsed": 41, "resetIn": 450000},
+    {"name": "Claude Models - Five Hour Limit Remaining", "percentUsed": 55, "resetIn": 11000}
+  ]}
+}
