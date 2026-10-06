@@ -1,53 +1,43 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, OpenCode, Antigravity, DeepSeek, OpenRouter, and Grok usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="AI Quotas popout" width="500"/>
+  <img src="assets/screenshot.png" alt="AI Quotas bar pill and popout" width="560"/>
 </p>
 
-## Supported Providers
+## Supported providers
 
-| Provider | Type | Data shown |
-|----------|------|------------|
-| **Claude** | Claude plan usage limits | 5-hour and weekly usage % with reset countdowns |
-| **Codex** | ChatGPT plan usage limits | 5-hour, weekly, and code review usage % with reset countdowns |
-| **OpenCode Go** | Usage quotas | Rolling (5h), Weekly, Monthly usage % with reset countdowns |
-| **Antigravity** | Agent/model usage quotas | Claude, Gemini Pro, Gemini Flash, Gemini Image usage % and reset times |
-| **DeepSeek API** | Account balance | Available total, API availability, unexpired grants, and paid top-ups |
-| **OpenRouter** | Account credit balance | Remaining credits, purchased total, and usage |
-| **Grok** | Usage limits | Shared weekly usage % with reset countdown, from local `grok login` |
-
-AI Quotas combines seven providers in one bar widget. It includes OpenCode Go quotas, Grok quotas, and DeepSeek balances alongside Claude, Codex, OpenRouter, and Antigravity. You can pin several limits across providers in one pill and change between used and remaining percentages.
+| Provider | Data shown | Credentials |
+|----------|------------|-------------|
+| **Claude** | 5-hour and weekly usage | Local Claude Code login |
+| **Codex** | 5-hour, weekly, and code review usage | Local Codex login (`codex login`) |
+| **OpenCode Go** | Rolling (5h), weekly, and monthly usage | `opencode /connect`, or an API key |
+| **Z.ai Coding Plan** | 5-hour, weekly, and monthly MCP tool usage | API key |
+| **Kimi Code** | 5-hour, weekly, and monthly usage | API key, or the `kimi` login |
+| **DeepSeek API** | Balance, API availability, grants, and top-ups | API key |
+| **OpenRouter** | Remaining, purchased, and used credits | API key |
+| **Grok** | Weekly usage or on-demand spending cap | Local Grok login (`grok login`) |
+| **Antigravity** | Usage per model group | Local `agy` login in the system keyring |
 
 ## Features
 
-- Merged bar pill showing provider logos, pinned percentages, and DeepSeek and OpenRouter balances
-- Claude, Codex, OpenCode, and Grok pinned percentages in the bar pill, with all supported limits in the popout
-- Separators between provider sections in the pill
-- Click to open a tabbed provider popout with clean per-limit detail cards
-- Pin any Claude, Codex, OpenCode, DeepSeek, or Grok item directly from its popout card
-- Display mode toggle: show remaining % or used % (synced between pill and popout)
-- Reset date/time or countdown shown for each usage limit
-- DeepSeek API balance card with availability status, total, unexpired grants, paid top-ups, and logo
-- OpenRouter credit balance card with remaining, purchased, and used amounts, and logo
-- Grok usage card from local `grok login` (no API key)
-- Configurable refresh interval (30s - 300s)
-- Toggle each provider on/off independently
-- OpenCode Rolling (5h), Weekly, and Monthly windows are always available in the popout
-- Claude, Codex, OpenCode, and Grok use local CLI logins. DeepSeek and OpenRouter keys are set in DMS settings.
+- One bar pill with a logo and a value for each pinned limit or balance.
+- A popout with one tab per provider. The popout widens until every tab fits.
+- Pin any limit or balance from the popout. You can pin several per provider.
+- When a provider has no window that matches its pins, the pill shows its first window. For example, Codex free plans have no 5-hour window.
+- When a blocking limit is used up, the pill shows the provider as used up, even if the pinned window still has room.
+- Show remaining or used percentages, in the pill and the popout.
+- Reset times as a date or as a countdown.
+- Turn each provider on or off.
+- Refresh every 30 to 300 seconds. All providers are fetched in parallel.
 
 ## Requirements
 
-- DankMaterialShell >= 1.5.0
+- DankMaterialShell 1.5.0 or newer
 - `curl` and `jq`
-- For Claude: Claude Code 2.1.220 or newer, installed and signed in (`claude`)
-- For DeepSeek: an API key from [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
-- For OpenRouter: an API key from [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). If credit access is denied, create a management key at [openrouter.ai/settings/management-keys](https://openrouter.ai/settings/management-keys)
-- For Grok: the Grok CLI installed and authenticated with `grok login`
-- For Codex: the Codex CLI installed and authenticated with `codex login`
-- For OpenCode: the OpenCode CLI connected with `/connect` to OpenCode Go, or an API key from [opencode.ai](https://opencode.ai)
-- For Antigravity only: `secret-tool` from libsecret and an authenticated Antigravity CLI (`agy`). Other providers do not need libsecret.
+- Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
+- Optional: `secret-tool` from libsecret, for Antigravity only
 
 ## Install
 
@@ -57,45 +47,38 @@ git clone https://github.com/agneswd/dms-ai-quotas \
 ```
 
 Then in DMS:
-1. Open **Settings - Plugins**
-2. Click **Scan for Plugins**
-3. Enable **AI Quotas**
-4. Add to DankBar layout (**Settings - DankBar Layout**)
-5. Restart shell: `dms restart`
+
+1. Open **Settings - Plugins**.
+2. Click **Scan for Plugins**.
+3. Enable **AI Quotas**.
+4. Add the widget to the bar in **Settings - DankBar Layout**.
+5. Restart the shell with `dms restart`.
 
 ## Settings
 
-### General
-
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Claude | on | Show Claude plan usage limits from the local Claude Code login |
-| Codex | on | Show Codex usage limits from the local Codex login |
-| OpenCode | on | Show OpenCode Go usage quotas from the local OpenCode login |
-| Antigravity | on | Show Antigravity agent and model quotas |
-| DeepSeek | on | Show DeepSeek account balance |
-| OpenRouter | on | Show OpenRouter credit balance |
-| Grok | on | Show usage limits from the local Grok login |
-| Refresh Interval | 60s | How often to fetch data (30-300s) |
+| Provider toggles | on | Show or hide each provider |
+| Refresh Interval | 60 s | How often to fetch data (30-300 s) |
 | Show Reset Times | on | Show reset information in the popout |
-| Show Reset Countdown | off | Use a countdown instead of the reset date and time |
-| Display Mode | Remaining (%) | Show remaining or used percentage (pill + popout) |
+| Show Reset Countdown | off | Show a countdown instead of the reset date and time |
+| Display Mode | Remaining (%) | Show remaining or used percentages |
+| OpenCode Go API Key | empty | Optional. Overrides the key from `opencode /connect` |
+| Z.ai Coding Plan API Key | empty | Your GLM Coding Plan API key |
+| Z.ai Region | Global | Global (`api.z.ai`) or China (`open.bigmodel.cn`) |
+| Kimi Code API Key | empty | Recommended. See [Kimi Code](#kimi-code) |
+| DeepSeek API Key | empty | From [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
+| OpenRouter API Key | empty | From [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
 
-Use the pin button beside any limit in the popout to choose which limits appear in the bar pill. Multiple limits can be pinned at once.
+Use the pin button next to a limit in the popout to choose what the bar pill shows.
 
-### Credentials
+## Credentials
 
-Claude, Codex, OpenCode, and Grok use their local CLI logins automatically. Sign in once with `claude`, `codex login`, `opencode /connect` (OpenCode Go), and `grok login`. No tokens need to be copied into DMS settings for those providers. Claude usage comes from Claude Code's native rate-limit data, with a five-minute API fallback when that data is stale.
+The plugin reads credentials from the plugin settings and from local CLI logins. It never refreshes or writes a CLI login. It passes credentials to `curl` in private header files under a temporary directory, never as process arguments, and it does not write them to the cache.
 
-| Setting | Description |
-|---------|-------------|
-| DeepSeek API Key | Your DeepSeek API key from platform.deepseek.com/api_keys |
-| OpenRouter API Key | Your OpenRouter API key from openrouter.ai/settings/keys |
-| OpenCode Go API Key | Optional. Leave empty to use `~/.local/share/opencode/auth.json` |
+### Claude
 
-### Enable Claude quota capture
-
-Add the plugin's capture script as your Claude Code status line in `~/.claude/settings.json`:
+This needs Claude Code 2.1.220 or newer. Sign in once with `claude`. Then add the plugin's capture script as your Claude Code status line in `~/.claude/settings.json`:
 
 ```json
 {
@@ -106,35 +89,82 @@ Add the plugin's capture script as your Claude Code status line in `~/.claude/se
 }
 ```
 
-Claude Code provides quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into that script instead of replacing it.
+Claude Code sends quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into your script. When the captured data is older than five minutes, the plugin asks the Claude usage API, at most once every five minutes.
 
-### Antigravity credentials
+### Codex and Grok
 
-Antigravity needs `secret-tool` from libsecret to read the `gemini` / `antigravity` keyring entry. The plugin uses the access token that `agy` stores there. It sends that token only to `daily-cloudcode-pa.googleapis.com`, with the `dms-ai-quotas` user agent.
+Sign in with `codex login` and `grok login`. The plugin reads `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and `GROK_HOME/auth.json` (default `~/.grok/auth.json`).
 
-The plugin does not refresh tokens. If the token expires, open `agy` to refresh its login, then refresh AI Quotas. Start `agy` and follow its sign-in prompt if you have not signed in. Disable Antigravity in plugin settings if you do not use it.
+### OpenCode Go
 
-The plugin stores usage results under `$XDG_CACHE_HOME/dms-ai-quotas`, or `~/.cache/dms-ai-quotas` by default. It does not cache Antigravity access tokens, refresh tokens, or OAuth client secrets. Older versions stored Antigravity state in `~/.cache/agy-usage`. This version does not read that directory. You can remove that old state if no other tool uses it.
+1. Subscribe to Go at [opencode.ai](https://opencode.ai) and copy the API key.
+2. In the OpenCode TUI, run `/connect`, choose **OpenCode Go**, and paste the key.
 
-## How to get OpenCode credentials
+The plugin uses the first key it finds:
 
-1. Subscribe to Go at [opencode.ai](https://opencode.ai) and copy the API key
-2. In the OpenCode TUI run `/connect`, pick **OpenCode Go**, and paste the key
-3. The plugin reads the `opencode-go` key from `~/.local/share/opencode/auth.json`
-4. If you do not use the OpenCode CLI, paste the same key into DMS Settings -> AI Quotas
+1. The **OpenCode Go API Key** setting.
+2. The newest `opencode-go` key in `opencode.db`. Newer OpenCode versions save `/connect` keys there. This needs `sqlite3`.
+3. The `opencode-go` key in `auth.json`.
+
+Both files are in `OPENCODE_DATA_DIR`, by default `~/.local/share/opencode`.
+
+### Z.ai Coding Plan
+
+Paste the API key of your GLM Coding Plan into **Z.ai Coding Plan API Key**. Find it at [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list). For a BigModel key from open.bigmodel.cn, set **Z.ai Region** to China. The plugin sends the key only to `api.z.ai` or `open.bigmodel.cn`.
+
+### Kimi Code
+
+Paste a Kimi Code API key into **Kimi Code API Key**. Find it in the [Kimi Code console](https://www.kimi.com/code/console). This is the recommended setup.
+
+Without a key, the plugin uses the login token of the `kimi` CLI from `~/.kimi-code/credentials/kimi-code.json`. That token expires about 15 minutes after `kimi` stops, and only `kimi` refreshes it. The plugin then shows that the login expired until you run `kimi` again.
+
+The plugin sends the key to `api.kimi.com`. To use `api.kimi.ai`, set `KIMI_CODE_BASE_URL=https://api.kimi.ai/coding/v1` in the environment of DMS.
+
+### Antigravity
+
+Antigravity needs `secret-tool` from libsecret. The plugin reads the access token that `agy` stores in the `gemini` / `antigravity` keyring entry. It sends the token only to `daily-cloudcode-pa.googleapis.com`. If the token expires, open `agy` to refresh the login. Turn off Antigravity in the plugin settings if you do not use it.
 
 ## How it works
 
-The plugin captures Claude Code's native `rate_limits` status data locally and polls its usage endpoint at most every five minutes when native data is stale. It reads the local Codex OAuth token from `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and queries the Codex usage endpoint, reads the OpenCode Go API key from plugin settings or `OPENCODE_DATA_DIR/auth.json` (default `~/.local/share/opencode/auth.json`) and queries `opencode.ai/zen/go/v1/usage`, reads Antigravity credentials from the system keyring and queries its quota API, queries the DeepSeek balance API, queries the OpenRouter credits API with an API key, and reads the local Grok OAuth token from `GROK_HOME/auth.json` (default `~/.grok/auth.json`) to query Grok billing. DeepSeek's balance endpoint provides account funds and availability, not usage history. No external npm packages required.
+`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
 
 ```
-Claude native data + 5m fallback   ---> local usage snapshot --------------\
-Codex auth.json                    ---> chatgpt.com/backend-api/wham/usage --\
-OpenCode auth.json or API key      ---> opencode.ai/zen/go/v1/usage        --\
-System keyring                     ---> Google quota API                    ----> fetch-usage.sh ---> cache ---> Widget
-curl api.deepseek.com/user/balance  ---> [Fetch API balance]                 --\
-openrouter.ai/api/v1/credits        ---> [Fetch credit balance]              --\
-Grok auth.json                     ---> cli-chat-proxy.grok.com/v1/billing --/
+providers/claude.sh       Claude Code status line data, api.anthropic.com fallback
+providers/codex.sh        chatgpt.com/backend-api/wham/usage
+providers/opencode.sh     opencode.ai/zen/go/v1/usage
+providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit
+providers/kimi.sh         api.kimi.com/coding/v1/usages
+providers/deepseek.sh     api.deepseek.com/user/balance
+providers/openrouter.sh   openrouter.ai/api/v1/credits
+providers/grok.sh         cli-chat-proxy.grok.com/v1/billing
+providers/antigravity.sh  daily-cloudcode-pa.googleapis.com quota summary
+```
+
+To add a provider:
+
+1. Add `providers/<id>.sh` with a `fetch_<id>` function. `providers/lib.sh` describes the output.
+2. Add the id to `providers` in `fetch-usage.sh`.
+3. Add an entry to `providers` in `AiQuotasWidget.qml` and `assets/<id>-logo.svg`.
+4. Add the toggle and any key to `AiQuotasSettings.qml` and to the maps in `AiQuotasDaemon.qml`.
+
+## Development
+
+Run the fetch tests. They use a fake `curl` and fixture credentials:
+
+```sh
+for test in tests/test-*.sh; do sh "$test" || echo "FAILED: $test"; done
+```
+
+Render the plugin offscreen with the real DMS components and the demo data in `tests/fixtures/demo-usage.json`. This needs a DMS installation and `qs`. The render uses its own D-Bus session and temporary XDG directories, so it does not change the running shell. It saves the images to `tests/render-output`:
+
+```sh
+sh tests/render.sh
+```
+
+To refresh the README screenshot:
+
+```sh
+AIQ_RENDER_SCALE=2 AIQ_UPDATE_SCREENSHOT=1 sh tests/render.sh
 ```
 
 ## License
