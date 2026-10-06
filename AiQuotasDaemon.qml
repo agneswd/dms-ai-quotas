@@ -8,17 +8,24 @@ PluginComponent {
     id: root
     pluginId: "aiQuotas"
 
+    // Plugin settings passed to fetch-usage.sh as environment variables, never as
+    // arguments. Provider toggles default to on.
+    readonly property var toggleSettings: ({
+        claudeEnabled: "AIQ_CLAUDE_ENABLED",
+        codexEnabled: "AIQ_CODEX_ENABLED",
+        openCodeEnabled: "AIQ_OPENCODE_ENABLED",
+        deepSeekEnabled: "AIQ_DEEPSEEK_ENABLED",
+        openRouterEnabled: "AIQ_OPENROUTER_ENABLED",
+        grokEnabled: "AIQ_GROK_ENABLED",
+        antigravityEnabled: "AIQ_ANTIGRAVITY_ENABLED"
+    })
+    readonly property var valueSettings: ({
+        openCodeApiKey: "OPENCODE_GO_API_KEY",
+        deepSeekApiKey: "DEEPSEEK_API_KEY",
+        openRouterApiKey: "OPENROUTER_API_KEY"
+    })
+
     property int refreshInterval: pluginData.refreshInterval || 60
-    property bool claudeEnabled: pluginData.claudeEnabled !== false
-    property bool codexEnabled: pluginData.codexEnabled !== false
-    property bool openCodeEnabled: pluginData.openCodeEnabled !== false
-    property bool deepSeekEnabled: pluginData.deepSeekEnabled !== false
-    property bool openRouterEnabled: pluginData.openRouterEnabled !== false
-    property bool antigravityEnabled: pluginData.antigravityEnabled !== false
-    property bool grokEnabled: pluginData.grokEnabled !== false
-    property string deepSeekApiKey: pluginData.deepSeekApiKey || ""
-    property string openRouterApiKey: pluginData.openRouterApiKey || ""
-    property string openCodeApiKey: pluginData.openCodeApiKey || ""
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -32,6 +39,16 @@ PluginComponent {
     property bool activeForce: false
     property string lastFetchSignature: ""
 
+    // Environment for one fetch, without the force flag.
+    function settingsEnvironment() {
+        var env = {}
+        for (var toggle in toggleSettings)
+            env[toggleSettings[toggle]] = pluginData[toggle] !== false ? "1" : "0"
+        for (var setting in valueSettings)
+            env[valueSettings[setting]] = String(pluginData[setting] || "")
+        return env
+    }
+
     Timer {
         id: refreshTimer
         interval: root.refreshInterval * 1000
@@ -44,19 +61,11 @@ PluginComponent {
     Process {
         id: fetchProcess
         command: ["sh", root.pluginDir + "fetch-usage.sh"]
-        environment: ({
-            AIQ_CLAUDE_ENABLED: root.claudeEnabled ? "1" : "0",
-            AIQ_CODEX_ENABLED: root.codexEnabled ? "1" : "0",
-            AIQ_OPENCODE_ENABLED: root.openCodeEnabled ? "1" : "0",
-            AIQ_DEEPSEEK_ENABLED: root.deepSeekEnabled ? "1" : "0",
-            AIQ_OPENROUTER_ENABLED: root.openRouterEnabled ? "1" : "0",
-            AIQ_GROK_ENABLED: root.grokEnabled ? "1" : "0",
-            AIQ_ANTIGRAVITY_ENABLED: root.antigravityEnabled ? "1" : "0",
-            AIQ_FORCE_REFRESH: root.activeForce ? "1" : "0",
-            DEEPSEEK_API_KEY: root.deepSeekApiKey,
-            OPENROUTER_API_KEY: root.openRouterApiKey,
-            OPENCODE_GO_API_KEY: root.openCodeApiKey
-        })
+        environment: {
+            var env = root.settingsEnvironment()
+            env.AIQ_FORCE_REFRESH = root.activeForce ? "1" : "0"
+            return env
+        }
         stdout: SplitParser {
             onRead: line => {
                 try {
@@ -79,9 +88,7 @@ PluginComponent {
     }
 
     function fetchSignature() {
-        return [claudeEnabled, codexEnabled, openCodeEnabled, deepSeekEnabled,
-            openRouterEnabled, antigravityEnabled, grokEnabled, deepSeekApiKey,
-            openRouterApiKey, openCodeApiKey].join("\u001f")
+        return JSON.stringify(settingsEnvironment())
     }
 
     function requestFetch(force) {
