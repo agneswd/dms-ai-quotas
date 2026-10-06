@@ -25,14 +25,16 @@ PluginComponent {
     // Providers in display order. The ids match the keys in fetch-usage.sh output
     // and the assets/<id>-logo.svg file names. "limits" providers report usage
     // windows in data.entries. "balance" providers report money in data.balances.
+    // When any window in blockingWindows is used up, the provider is blocked, so
+    // the pill shows it as used up.
     readonly property var providers: [
-        { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"] },
-        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"] },
-        { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"] },
-        { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"] },
-        { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"] },
-        { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"] },
-        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini Models - Five Hour Limit Remaining"] }
+        { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
+        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
+        { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"] },
+        { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
+        { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
+        { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [] },
+        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini Models - Five Hour Limit Remaining"], blockingWindows: [] }
     ]
 
     function loadUsageData() {
@@ -249,7 +251,15 @@ PluginComponent {
         return sections
     }
 
+    function providerBlocked(id) {
+        var blocking = provider(id).blockingWindows
+        return providerRows(id).some(function (row) {
+            return blocking.indexOf(row.pinKey) >= 0 && row.percentUsed >= 100
+        })
+    }
+
     // Pinned rows for the bar pill, with a separator before each new provider.
+    // A blocked provider shows every pinned window as used up.
     function pillItems() {
         var out = []
         var enabled = enabledProviders()
@@ -258,8 +268,10 @@ PluginComponent {
             var rows = providerRows(enabled[i].id).filter(function (row) {
                 return pins.indexOf(row.pinKey) >= 0
             })
+            var blocked = providerBlocked(enabled[i].id)
             for (var j = 0; j < rows.length; j++) {
                 rows[j].separator = out.length > 0 && j === 0
+                if (blocked && !rows[j].isBalance) rows[j].shortValue = Math.round(pctVal(100)) + "%"
                 out.push(rows[j])
             }
         }
