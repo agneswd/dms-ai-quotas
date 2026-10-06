@@ -179,38 +179,16 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty || kimiApiKey.isDirty
+            showReset: openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty || kimiApiKey.isDirty || deepSeekApiKey.isDirty || openRouterApiKey.isDirty
             onResetClicked: {
-                kimiApiKey.resetToDefault()
+                openCodeApiKey.resetToDefault()
                 zaiApiKey.resetToDefault()
                 zaiRegion.resetToDefault()
+                kimiApiKey.resetToDefault()
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
-                openCodeApiKey.resetToDefault()
             }
         }
-
-        StringSettingPlus {
-            id: deepSeekApiKey
-            settingKey: "deepSeekApiKey"
-            label: I18n.tr("DeepSeek API Key")
-            description: I18n.tr("Get this from platform.deepseek.com/api_keys.")
-            placeholder: "sk-..."
-            defaultValue: ""
-        }
-
-        Separator {}
-
-        StringSettingPlus {
-            id: openRouterApiKey
-            settingKey: "openRouterApiKey"
-            label: I18n.tr("OpenRouter API Key")
-            description: I18n.tr("Your API key from openrouter.ai/settings/keys.")
-            placeholder: "sk-or-..."
-            defaultValue: ""
-        }
-
-        Separator {}
 
         StringSettingPlus {
             id: openCodeApiKey
@@ -254,6 +232,28 @@ PluginSettings {
             label: I18n.tr("Kimi Code API Key")
             description: I18n.tr("Recommended. Without a key, the plugin uses the kimi login, which expires a few minutes after kimi closes.")
             placeholder: "sk-kimi-..."
+            defaultValue: ""
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: deepSeekApiKey
+            settingKey: "deepSeekApiKey"
+            label: I18n.tr("DeepSeek API Key")
+            description: I18n.tr("Get this from platform.deepseek.com/api_keys.")
+            placeholder: "sk-..."
+            defaultValue: ""
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: openRouterApiKey
+            settingKey: "openRouterApiKey"
+            label: I18n.tr("OpenRouter API Key")
+            description: I18n.tr("Your API key from openrouter.ai/settings/keys.")
+            placeholder: "sk-or-..."
             defaultValue: ""
         }
     }
