@@ -15,6 +15,7 @@ PluginComponent {
         codexEnabled: "AIQ_CODEX_ENABLED",
         openCodeEnabled: "AIQ_OPENCODE_ENABLED",
         zaiEnabled: "AIQ_ZAI_ENABLED",
+        kimiEnabled: "AIQ_KIMI_ENABLED",
         deepSeekEnabled: "AIQ_DEEPSEEK_ENABLED",
         openRouterEnabled: "AIQ_OPENROUTER_ENABLED",
         grokEnabled: "AIQ_GROK_ENABLED",
@@ -24,6 +25,7 @@ PluginComponent {
         openCodeApiKey: "OPENCODE_GO_API_KEY",
         zaiApiKey: "ZAI_API_KEY",
         zaiRegion: "ZAI_API_HOST",
+        kimiApiKey: "KIMI_API_KEY",
         deepSeekApiKey: "DEEPSEEK_API_KEY",
         openRouterApiKey: "OPENROUTER_API_KEY"
     })

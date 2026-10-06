@@ -11,12 +11,13 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || kimiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
                 openCodeEnabled.resetToDefault()
                 zaiEnabled.resetToDefault()
+                kimiEnabled.resetToDefault()
                 deepSeekEnabled.resetToDefault()
                 openRouterEnabled.resetToDefault()
                 grokEnabled.resetToDefault()
@@ -59,6 +60,16 @@ PluginSettings {
             settingKey: "zaiEnabled"
             label: I18n.tr("Z.ai Coding Plan")
             description: I18n.tr("Show GLM Coding Plan quotas for your Z.ai API key.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: kimiEnabled
+            settingKey: "kimiEnabled"
+            label: I18n.tr("Kimi Code")
+            description: I18n.tr("Show Kimi Code plan quotas from an API key or your kimi login.")
             defaultValue: true
         }
 
@@ -168,8 +179,9 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty || kimiApiKey.isDirty
             onResetClicked: {
+                kimiApiKey.resetToDefault()
                 zaiApiKey.resetToDefault()
                 zaiRegion.resetToDefault()
                 deepSeekApiKey.resetToDefault()
@@ -232,6 +244,17 @@ PluginSettings {
                 { label: I18n.tr("China (open.bigmodel.cn)"), value: "open.bigmodel.cn" }
             ]
             defaultValue: "api.z.ai"
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: kimiApiKey
+            settingKey: "kimiApiKey"
+            label: I18n.tr("Kimi Code API Key")
+            description: I18n.tr("Recommended. Without a key, the plugin uses the kimi login, which expires a few minutes after kimi closes.")
+            placeholder: "sk-kimi-..."
+            defaultValue: ""
         }
     }
 }

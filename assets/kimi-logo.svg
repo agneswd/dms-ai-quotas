@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+  <title>Kimi</title>
+  <rect x="1.5" y="1.5" width="27" height="27" rx="7" fill="#0D0D0D"/>
+  <path fill="#FFFFFF" d="M8.5 7.5h3.4v6.3l5.6-6.3h4.2l-6.2 6.8 6.6 8.2h-4.3l-4.7-6.1-1.2 1.3v4.8H8.5z"/>
+  <circle cx="22.6" cy="7.4" r="2.6" fill="#1783FF"/>
+</svg>

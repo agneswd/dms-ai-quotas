@@ -14,7 +14,7 @@
 set -u
 umask 077
 
-providers="claude codex opencode zai deepseek openrouter grok antigravity"
+providers="claude codex opencode zai kimi deepseek openrouter grok antigravity"
 plugin_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 cache="${CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/usage.json}"
 ttl="${AIQ_CACHE_TTL:-55}"

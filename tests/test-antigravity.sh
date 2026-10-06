@@ -43,7 +43,7 @@ run_fetch() {
         AIQ_TEST_KEYRING="$keyring" AIQ_TEST_REQUESTS="$requests" \
         AIQ_CLAUDE_ENABLED=0 AIQ_CODEX_ENABLED=0 AIQ_OPENCODE_ENABLED=0 \
         AIQ_DEEPSEEK_ENABLED=0 AIQ_OPENROUTER_ENABLED=0 AIQ_GROK_ENABLED=0 \
-        AIQ_ANTIGRAVITY_ENABLED=1 AIQ_FORCE_REFRESH=1 \
+        AIQ_ANTIGRAVITY_ENABLED=1 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 AIQ_FORCE_REFRESH=1 \
         sh "$repo/fetch-usage.sh" > "$test_dir/result.json"
     cat "$test_dir/result.json"
 }
