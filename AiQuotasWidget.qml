@@ -381,8 +381,9 @@ PluginComponent {
         return displayMode === "used" ? pct : 100 - pct
     }
 
+    // Round to two decimals so values such as 35.09999999 read as 35.1.
     function pctStr(pct) {
-        return pctVal(pct) + (displayMode === "used" ? "% used" : "% remaining")
+        return Math.round(pctVal(pct) * 100) / 100 + (displayMode === "used" ? "% used" : "% remaining")
     }
 
     // --- Bar Pills ---
