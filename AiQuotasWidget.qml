@@ -505,7 +505,29 @@ PluginComponent {
 
     // --- Popout ---
 
-    popoutWidth: 420
+    // Measures tab labels so the popout can grow until every provider tab fits.
+    FontMetrics {
+        id: tabLabelMetrics
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSmall
+    }
+
+    readonly property real tabWidth: Theme.iconSizeSmall + Theme.spacingM * 2
+    // Fits the longest enabled label, so the popout keeps its width when the tab changes.
+    readonly property real selectedTabWidth: {
+        var widest = 0
+        var enabled = enabledProviders()
+        for (var i = 0; i < enabled.length; i++)
+            widest = Math.max(widest, tabLabelMetrics.advanceWidth(enabled[i].label))
+        return tabWidth + Theme.spacingXS + Math.ceil(widest)
+    }
+
+    popoutWidth: {
+        var count = enabledProviders().length
+        var tabs = count === 0 ? 0 : selectedTabWidth + (count - 1) * (tabWidth + Theme.spacingXS)
+        // PluginPopout adds spacingS on each side. The content column adds spacingM.
+        return Math.max(420, Math.ceil(tabs + (Theme.spacingS + Theme.spacingM) * 2))
+    }
     popoutHeight: 700
     popoutContent: Component {
         PopoutComponent {
@@ -529,12 +551,13 @@ PluginComponent {
                         model: root.enabledProviders()
                         delegate: Rectangle {
                             readonly property bool selected: root.selectedProvider === modelData.id
+                            // The selected tab is 1.8 times wider, and never narrower than its label.
                             width: {
                                 var count = root.enabledProviders().length
                                 var available = providerTabsRow.width - Theme.spacingXS * (count - 1)
-                                var ratio = 1.8 // active-to-inactive width ratio
-                                var unit = available / (ratio + count - 1)
-                                return selected ? ratio * unit : unit
+                                var selectedWidth = Math.max(1.8 * available / (count + 0.8), root.selectedTabWidth)
+                                if (count < 2) return available
+                                return selected ? selectedWidth : (available - selectedWidth) / (count - 1)
                             }
                             height: providerTabsRow.height
                             radius: Theme.cornerRadius
