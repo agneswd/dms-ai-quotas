@@ -11,11 +11,12 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
                 openCodeEnabled.resetToDefault()
+                zaiEnabled.resetToDefault()
                 deepSeekEnabled.resetToDefault()
                 openRouterEnabled.resetToDefault()
                 grokEnabled.resetToDefault()
@@ -48,6 +49,16 @@ PluginSettings {
             settingKey: "openCodeEnabled"
             label: I18n.tr("OpenCode Go")
             description: I18n.tr("Show OpenCode Go usage quotas from your local OpenCode login.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: zaiEnabled
+            settingKey: "zaiEnabled"
+            label: I18n.tr("Z.ai Coding Plan")
+            description: I18n.tr("Show GLM Coding Plan quotas for your Z.ai API key.")
             defaultValue: true
         }
 
@@ -157,8 +168,10 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty
+            showReset: deepSeekApiKey.isDirty || openRouterApiKey.isDirty || openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty
             onResetClicked: {
+                zaiApiKey.resetToDefault()
+                zaiRegion.resetToDefault()
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
                 openCodeApiKey.resetToDefault()
@@ -194,6 +207,31 @@ PluginSettings {
             description: I18n.tr("Optional. Leave empty to use the key from opencode /connect.")
             placeholder: "sk-..."
             defaultValue: ""
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: zaiApiKey
+            settingKey: "zaiApiKey"
+            label: I18n.tr("Z.ai Coding Plan API Key")
+            description: I18n.tr("The API key you use with your GLM Coding Plan, from z.ai/manage-apikey/apikey-list.")
+            placeholder: I18n.tr("Paste your API key")
+            defaultValue: ""
+        }
+
+        Separator {}
+
+        SelectionSettingPlus {
+            id: zaiRegion
+            settingKey: "zaiRegion"
+            label: I18n.tr("Z.ai Region")
+            description: I18n.tr("Use China for BigModel (open.bigmodel.cn) Coding Plan keys.")
+            options: [
+                { label: I18n.tr("Global (api.z.ai)"), value: "api.z.ai" },
+                { label: I18n.tr("China (open.bigmodel.cn)"), value: "open.bigmodel.cn" }
+            ]
+            defaultValue: "api.z.ai"
         }
     }
 }
