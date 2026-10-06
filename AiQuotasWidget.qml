@@ -388,6 +388,9 @@ PluginComponent {
 
     // --- Bar Pills ---
 
+    // Same text size as the native DMS bar widgets.
+    readonly property real barTextSize: Theme.barTextSize(barThickness, barConfig?.fontScale, barConfig?.maximizeWidgetText)
+
     horizontalBarPill: Component {
         StyledRect {
             id: pill
@@ -405,7 +408,7 @@ PluginComponent {
                     visible: !root.usageData
                     text: "✳ -"
                     color: Theme.surfaceTextMedium
-                    font.pixelSize: Theme.fontSizeMedium
+                    font.pixelSize: root.barTextSize
                 }
 
                 Repeater {
@@ -435,7 +438,7 @@ PluginComponent {
                         StyledText {
                             text: modelData.isBalance ? modelData.value : modelData.shortValue
                             color: Theme.surfaceText
-                            font.pixelSize: Theme.fontSizeMedium
+                            font.pixelSize: root.barTextSize
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
