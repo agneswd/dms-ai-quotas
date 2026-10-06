@@ -46,7 +46,7 @@ done
 grep -Fqx "Authorization: Bearer fixture-secret-$provider" "$header_file"
 printf '%s\n' "$provider" >> "$AIQ_TEST_PROVIDERS"
 printf '%s' "$body"
-if [ "$provider" != deepseek ]; then printf '\n200\n'; fi
+printf '\n200\n'
 EOF
 chmod +x "$test_dir/bin/curl" "$test_dir/bin/secret-tool"
 
