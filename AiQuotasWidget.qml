@@ -254,8 +254,9 @@ PluginComponent {
         var out = []
         var enabled = enabledProviders()
         for (var i = 0; i < enabled.length; i++) {
+            var pins = effectivePins(enabled[i].id)
             var rows = providerRows(enabled[i].id).filter(function (row) {
-                return isPinned(row.provider, row.pinKey)
+                return pins.indexOf(row.pinKey) >= 0
             })
             for (var j = 0; j < rows.length; j++) {
                 rows[j].separator = out.length > 0 && j === 0
@@ -308,17 +309,36 @@ PluginComponent {
             pluginService.savePluginData("aiQuotas", "pinnedLimits", JSON.stringify(pinState))
     }
 
+    // Saved pins that match the current data. When a provider has pins but none
+    // of them exist (for example "5h" on a Codex plan with only a weekly window),
+    // its first window takes their place. An empty pin list stays empty.
+    function effectivePins(id) {
+        var saved = pinState[id] || []
+        var keys = providerRows(id).map(function (row) { return row.pinKey })
+        var pins = saved.filter(function (name) { return keys.indexOf(name) >= 0 })
+        if (pins.length === 0 && saved.length > 0 && keys.length > 0) pins = [keys[0]]
+        return pins
+    }
+
     function isPinned(id, name) {
-        return (pinState[id] || []).indexOf(name) >= 0
+        return effectivePins(id).indexOf(name) >= 0
     }
 
     function togglePin(id, name) {
         var next = {}
         for (var key in pinState) next[key] = pinState[key].slice()
-        var pins = next[id] || []
+        // Keep saved pins for windows that are missing right now, unless the
+        // fallback pin is on display. Then the fallback becomes a real pin.
+        var saved = next[id] || []
+        var keys = providerRows(id).map(function (row) { return row.pinKey })
+        var pins = saved.some(function (pin) { return keys.indexOf(pin) >= 0 }) ? saved : effectivePins(id)
         var index = pins.indexOf(name)
-        if (index >= 0) pins.splice(index, 1)
-        else pins.push(name)
+        if (index < 0) pins.push(name)
+        else {
+            pins.splice(index, 1)
+            // Unpinning the last visible window hides the provider, without a fallback.
+            if (!pins.some(function (pin) { return keys.indexOf(pin) >= 0 })) pins = []
+        }
         next[id] = pins
         pinState = next
         savePinState()
