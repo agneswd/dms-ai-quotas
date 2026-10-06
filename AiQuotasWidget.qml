@@ -31,6 +31,7 @@ PluginComponent {
         { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"] },
+        { id: "zai", label: "Z.ai", title: "Z.ai Coding Plan", enabledKey: "zaiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
         { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
         { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [] },
@@ -178,6 +179,7 @@ PluginComponent {
         if (name === "5h") return "5 hour usage limit"
         if (name === "Weekly") return id === "claude" ? "Weekly usage limit (all models)" : "Weekly usage limit"
         if (name === "Code Review") return "Code review usage limit"
+        if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         return name + " usage limit"
     }
 
