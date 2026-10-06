@@ -8,6 +8,9 @@ mkdir -p "$test_dir/bin" "$test_dir/opencode"
 
 cat > "$test_dir/bin/curl" <<'EOF'
 #!/bin/sh
+for arg in "$@"; do
+    case "$arg" in @*) cat "${arg#@}" > "$OPENCODE_SENT_HEADERS" ;; esac
+done
 case "$OPENCODE_HTTP_CODE" in
     '')
         printf '%s\n200\n' "$OPENCODE_RESPONSE" ;;
@@ -23,6 +26,7 @@ run_fetch() {
     env PATH="$test_dir/bin:$PATH" \
         OPENCODE_RESPONSE="${1:-}" \
         OPENCODE_HTTP_CODE="${2:-}" \
+        OPENCODE_SENT_HEADERS="$test_dir/sent-headers" \
         AIQ_CLAUDE_ENABLED=0 \
         AIQ_CODEX_ENABLED=0 \
         AIQ_OPENCODE_ENABLED=1 \
@@ -71,3 +75,35 @@ OPENCODE_GO_API_KEY= run_fetch "$ok_body" | jq -e \
 printf '%s\n' '{"opencode-go":{"type":"api","key":"sk-from-file"}}' > "$test_dir/opencode/auth.json"
 OPENCODE_GO_API_KEY= run_fetch "$ok_body" | jq -e \
     '.opencode.status == "ok" and .opencode.entries[0].name == "Rolling"' >/dev/null
+
+# opencode v2 saves /connect keys in opencode.db and can leave an old key in
+# auth.json. The newest database key must win. The plugin setting wins over both.
+sent_key() {
+    sed -n 's/^Authorization: Bearer //p' "$test_dir/sent-headers"
+}
+if command -v sqlite3 >/dev/null 2>&1; then
+    printf '%s\n' '{"opencode-go":{"type":"api","key":"sk-old-auth-json"}}' > "$test_dir/opencode/auth.json"
+    sqlite3 "$test_dir/opencode/opencode.db" "
+        create table credential (id text primary key, integration_id text, label text not null,
+            value text not null, connector_id text, method_id text, active integer,
+            time_created integer not null, time_updated integer not null);
+        insert into credential values ('a', 'opencode-go', 'default', '{\"key\":\"sk-db-old\"}', null, null, null, 1, 1);
+        insert into credential values ('b', 'opencode-go', 'default', '{\"key\":\"sk-db-new\"}', null, null, null, 2, 2);
+        insert into credential values ('c', 'deepseek', 'default', '{\"key\":\"sk-other\"}', null, null, null, 3, 3);"
+    OPENCODE_GO_API_KEY= run_fetch "$ok_body" | jq -e '.opencode.status == "ok"' >/dev/null
+    [ "$(sent_key)" = "sk-db-new" ]
+
+    sqlite3 "$test_dir/opencode/opencode.db" "update credential set active = 1 where id = 'a'"
+    OPENCODE_GO_API_KEY= run_fetch "$ok_body" >/dev/null
+    [ "$(sent_key)" = "sk-db-old" ]
+
+    run_fetch "$ok_body" >/dev/null
+    [ "$(sent_key)" = "sk-test" ]
+
+    sqlite3 "$test_dir/opencode/opencode.db" "delete from credential where integration_id = 'opencode-go'"
+    OPENCODE_GO_API_KEY= run_fetch "$ok_body" >/dev/null
+    [ "$(sent_key)" = "sk-old-auth-json" ]
+else
+    printf '%s\n' 'sqlite3 is not installed. Skipped the opencode.db checks.' >&2
+fi
+printf '%s\n' 'OpenCode fetch checks passed.'
