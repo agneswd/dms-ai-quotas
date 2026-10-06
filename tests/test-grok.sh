@@ -20,7 +20,7 @@ env PATH="$test_dir/bin:$PATH" \
     AIQ_OPENCODE_ENABLED=0 \
     AIQ_DEEPSEEK_ENABLED=0 \
     AIQ_GROK_ENABLED=1 \
-    AIQ_ANTIGRAVITY_ENABLED=0 \
+    AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 \
     AIQ_CACHE_TTL=0 \
     GROK_HOME="$test_dir/grok" \
     CACHE_FILE="$test_dir/usage.json" \
@@ -36,7 +36,7 @@ env PATH="$test_dir/bin:$PATH" \
     AIQ_OPENCODE_ENABLED=0 \
     AIQ_DEEPSEEK_ENABLED=0 \
     AIQ_GROK_ENABLED=1 \
-    AIQ_ANTIGRAVITY_ENABLED=0 \
+    AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 \
     AIQ_CACHE_TTL=0 \
     GROK_HOME="$test_dir/grok" \
     CACHE_FILE="$test_dir/usage.json" \
@@ -52,7 +52,7 @@ env PATH="$test_dir/bin:$PATH" \
     AIQ_OPENCODE_ENABLED=0 \
     AIQ_DEEPSEEK_ENABLED=0 \
     AIQ_GROK_ENABLED=1 \
-    AIQ_ANTIGRAVITY_ENABLED=0 \
+    AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 \
     AIQ_CACHE_TTL=0 \
     GROK_HOME="$test_dir/grok" \
     CACHE_FILE="$test_dir/usage.json" \

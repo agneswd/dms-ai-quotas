@@ -37,6 +37,7 @@ for arg in "$@"; do
         *chatgpt.com*) provider=codex; body='{"plan_type":"plus","rate_limit":{"primary_window":{"used_percent":10,"reset_at":1893456000}}}'; grep -Fq 'ChatGPT-Account-Id: fixture-account' "$header_file" ;;
         *opencode.ai*) provider=opencode; body='{"usage":{"rolling":{"percent":10}}}' ;;
         *api.deepseek.com*) provider=deepseek; body='{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"10","granted_balance":"0","topped_up_balance":"10"}]}' ;;
+        *api.kimi.com*) provider=kimi; body='{"usages":{"limit_5h":{"used_ratio":0.1}}}' ;;
         *api.z.ai*) provider=zai; body='{"code":200,"success":true,"data":{"limits":[{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":10}]}}' ;;
         *openrouter.ai*) provider=openrouter; body='{"data":{"total_credits":20,"total_usage":10}}' ;;
         *cli-chat-proxy.grok.com*) provider=grok; body='{"config":{"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY","end":"2030-01-01T00:00:00Z"},"onDemandCap":{"val":0},"onDemandUsed":{"val":0}}}' ;;
@@ -57,13 +58,14 @@ env PATH="$test_dir/bin:$PATH" TMPDIR="$test_dir/tmp" \
     AIQ_TEST_REQUESTS="$test_dir/requests.txt" AIQ_TEST_PROVIDERS="$test_dir/providers.txt" \
     AIQ_CLAUDE_ENABLED=1 AIQ_CODEX_ENABLED=1 AIQ_OPENCODE_ENABLED=1 \
     AIQ_DEEPSEEK_ENABLED=1 AIQ_OPENROUTER_ENABLED=1 AIQ_GROK_ENABLED=1 \
-    AIQ_ANTIGRAVITY_ENABLED=1 AIQ_ZAI_ENABLED=1 AIQ_FORCE_REFRESH=1 \
+    AIQ_ANTIGRAVITY_ENABLED=1 AIQ_ZAI_ENABLED=1 AIQ_KIMI_ENABLED=1 AIQ_FORCE_REFRESH=1 \
     OPENCODE_GO_API_KEY=fixture-secret-opencode DEEPSEEK_API_KEY=fixture-secret-deepseek \
     OPENROUTER_API_KEY=fixture-secret-openrouter ZAI_API_KEY=fixture-secret-zai \
+    KIMI_API_KEY=fixture-secret-kimi \
     sh "$repo/fetch-usage.sh" > "$test_dir/result.json"
 
-jq -e '[.claude,.codex,.opencode,.zai,.deepseek,.openrouter,.grok,.antigravity] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
-test "$(sort -u "$test_dir/providers.txt" | wc -l)" -eq 8
+jq -e '[.claude,.codex,.opencode,.zai,.kimi,.deepseek,.openrouter,.grok,.antigravity] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
+test "$(sort -u "$test_dir/providers.txt" | wc -l)" -eq 9
 test -z "$(find "$test_dir/tmp" -mindepth 1 -print -quit)"
 if grep -rEq 'fixture-secret-|fixture-account' "$test_dir/cache"; then
     printf '%s\n' 'Credentials were written to the cache.' >&2

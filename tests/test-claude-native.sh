@@ -49,7 +49,7 @@ run_fetch() {
         AIQ_OPENCODE_ENABLED=0 \
         AIQ_DEEPSEEK_ENABLED=0 \
         AIQ_GROK_ENABLED=0 \
-        AIQ_ANTIGRAVITY_ENABLED=0 \
+        AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 \
         AIQ_CACHE_TTL=0 \
         CLAUDE_CONFIG_DIR="$test_dir/claude" \
         CLAUDE_USAGE_FILE="$test_dir/claude-usage.json" \

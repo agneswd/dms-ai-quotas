@@ -27,7 +27,7 @@ run_fetch() {
         AIQ_DEEPSEEK_ENABLED=0 \
         AIQ_OPENROUTER_ENABLED=1 \
         AIQ_GROK_ENABLED=0 \
-        AIQ_ANTIGRAVITY_ENABLED=0 \
+        AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=0 AIQ_KIMI_ENABLED=0 \
         OPENROUTER_API_KEY=sk-or-test \
         AIQ_CACHE_TTL=0 \
         CACHE_FILE="$test_dir/usage.json" \
