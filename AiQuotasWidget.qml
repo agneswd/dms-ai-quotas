@@ -30,6 +30,7 @@ PluginComponent {
     readonly property var providers: [
         { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
+        { id: "copilot", label: "Copilot", title: "GitHub Copilot", enabledKey: "copilotEnabled", kind: "limits", defaultPins: ["Premium Requests"], blockingWindows: ["Premium Requests"] },
         { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"] },
         { id: "zai", label: "Z.ai", title: "Z.ai Coding Plan", enabledKey: "zaiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "kimi", label: "Kimi", title: "Kimi Code", enabledKey: "kimiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly", "Monthly"] },
@@ -182,6 +183,7 @@ PluginComponent {
         if (name === "Code Review") return "Code review usage limit"
         if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         if (id === "kimi" && name === "Monthly Code") return "Monthly Kimi Code limit"
+        if (id === "copilot" && name === "Premium Requests") return "Premium request quota"
         return name + " usage limit"
     }
 

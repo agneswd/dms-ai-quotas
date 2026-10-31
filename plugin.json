@@ -2,7 +2,7 @@
   "$schema": "https://github.com/AvengeMedia/DankMaterialShell/raw/refs/heads/master/PLUGINS/plugin-schema.json",
   "id": "aiQuotas",
   "name": "AI Quotas",
-  "description": "Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your bar.",
+  "description": "Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your bar.",
   "version": "1.10.0",
   "author": "agneswd",
   "license": "MIT",
