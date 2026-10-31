@@ -29,6 +29,7 @@ run_fetch() {
         OPENCODE_SENT_HEADERS="$test_dir/sent-headers" \
         AIQ_CLAUDE_ENABLED=0 \
         AIQ_CODEX_ENABLED=0 \
+        AIQ_COPILOT_ENABLED=0 \
         AIQ_OPENCODE_ENABLED=1 \
         AIQ_DEEPSEEK_ENABLED=0 \
         AIQ_OPENROUTER_ENABLED=0 \
