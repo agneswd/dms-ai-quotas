@@ -74,7 +74,9 @@ Use the pin button next to a limit in the popout to choose what the bar pill sho
 
 ## Credentials
 
-The plugin reads credentials from the plugin settings and from local CLI logins. It never refreshes or writes a CLI login. It passes credentials to `curl` in private header files under a temporary directory, never as process arguments, and it does not write them to the cache.
+The plugin reads credentials from the plugin settings, from local CLI logins, and, when you ask for it, from the freedesktop keyring. It never refreshes or writes a CLI login. It passes credentials to `curl` in private header files under a temporary directory, never as process arguments, and it does not write them to the cache.
+
+A setting left empty does not override the environment, so a key exported by a launcher or a service keeps working.
 
 ### Claude
 
@@ -105,8 +107,21 @@ The plugin uses the first key it finds:
 1. The **OpenCode Go API Key** setting.
 2. The newest `opencode-go` key in `opencode.db`. Newer OpenCode versions save `/connect` keys there. This needs `sqlite3`.
 3. The `opencode-go` key in `auth.json`.
+4. A keyring entry named by `AIQ_VAULT_OPENCODE`.
 
 Both files are in `OPENCODE_DATA_DIR`, by default `~/.local/share/opencode`.
+
+### Keyring
+
+A key can come from the freedesktop keyring, read at the moment of use, so it never enters the environment. Leave the matching setting empty and give the provider a lookup spec: the attribute/value words `secret-tool lookup` takes. The spec is not a secret, so it can live in any environment file, for example `~/.config/environment.d/90-dms.conf`.
+
+```sh
+AIQ_VAULT_ZAI="service zai username quota"
+AIQ_VAULT_OPENROUTER="service openrouter username quota"
+AIQ_VAULT_OPENCODE="service opencode username quota"
+```
+
+The shell reads the environment when it starts, so restart it after adding a spec. `AIQ_VAULT_TIMEOUT` bounds the lookup in seconds (default 3): a locked keyring raises a prompt and waits, and the fetch continues without a key rather than blocking.
 
 ### Z.ai Coding Plan
 
