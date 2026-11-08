@@ -44,6 +44,22 @@ aiq_http_failure() {
     esac
 }
 
+# Read a provider key from the freedesktop keyring, for a session started by
+# the graphical session, which never sees an interactive shell's exports.
+# Opt in per provider with AIQ_VAULT_<PROVIDER>, the attribute/value words
+# `secret-tool lookup` takes. The spec is not a secret, so it can live in any
+# environment file, and the key never enters the environment or the cache.
+# AIQ_VAULT_TIMEOUT bounds the wait in seconds (default 3): a locked keyring
+# raises a prompt and waits for an answer.
+aiq_vault_key() {
+    _vault_var="AIQ_VAULT_$(printf '%s' "$1" | tr 'a-z-' 'A-Z_')"
+    _vault_spec=$(printenv "$_vault_var" 2>/dev/null || true)
+    [ -n "$_vault_spec" ] || return 0
+    command -v secret-tool >/dev/null 2>&1 || return 0
+    # shellcheck disable=SC2086 # the spec is deliberately a list of words
+    timeout "${AIQ_VAULT_TIMEOUT:-3}" secret-tool lookup $_vault_spec 2>/dev/null || true
+}
+
 # Write request headers to a private file and print its path.
 # Usage: aiq_headers NAME "Header: value"...
 aiq_headers() {

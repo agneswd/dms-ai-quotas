@@ -44,13 +44,17 @@ PluginComponent {
     property bool activeForce: false
     property string lastFetchSignature: ""
 
-    // Environment for one fetch, without the force flag.
+    // Environment for one fetch, without the force flag. A value typed into
+    // the settings wins; an empty field leaves the variable unset, so the
+    // fetch keeps whatever the session environment or the keyring provides.
+    // Assigning "" would erase an inherited key.
     function settingsEnvironment() {
         var env = {}
         for (var toggle in toggleSettings)
             env[toggleSettings[toggle]] = pluginData[toggle] !== false ? "1" : "0"
         for (var setting in valueSettings)
-            env[valueSettings[setting]] = String(pluginData[setting] || "")
+            if (pluginData[setting])
+                env[valueSettings[setting]] = String(pluginData[setting])
         return env
     }
 
