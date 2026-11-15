@@ -154,9 +154,15 @@ fetch_claude() {
     creds="$config_dir/.credentials.json"
     access_token=$(jq -r '.claudeAiOauth.accessToken // empty' "$creds" 2>/dev/null)
     account=$(jq -r '.oauthAccount.accountUuid // empty' "$global_config" 2>/dev/null)
-    plan=$(claude_plan_name \
-        "$(jq -r '.claudeAiOauth.subscriptionType // empty' "$creds" 2>/dev/null)" \
-        "$(jq -r '.claudeAiOauth.rateLimitTier // empty' "$creds" 2>/dev/null)")
+    # Claude Code refreshes the profile in .claude.json. The credentials keep the
+    # plan from login time, so they are only the fallback.
+    plan_type=$(jq -r '.oauthAccount.organizationType // empty | sub("^claude_"; "")' "$global_config" 2>/dev/null)
+    plan_tier=$(jq -r '.oauthAccount | .userRateLimitTier // .organizationRateLimitTier // empty' "$global_config" 2>/dev/null)
+    if [ -z "$plan_type" ]; then
+        plan_type=$(jq -r '.claudeAiOauth.subscriptionType // empty' "$creds" 2>/dev/null)
+        plan_tier=$(jq -r '.claudeAiOauth.rateLimitTier // empty' "$creds" 2>/dev/null)
+    fi
+    plan=$(claude_plan_name "$plan_type" "$plan_tier")
 
     state_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas"
     usage_file="${CLAUDE_USAGE_FILE:-$state_dir/claude-native.json}"
