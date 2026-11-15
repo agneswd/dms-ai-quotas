@@ -9,6 +9,7 @@
 # - The plugin does not poll after Claude Code was used and the data is old.
 # - A 429 or 401 does not back off, or a 429 without Retry-After backs off for an hour.
 # - A Claude-only refresh drops other providers or resets the cache age.
+# - The plan comes from the login-time credentials after the subscription changed.
 # - The status line capture leaves a world-readable file.
 set -eu
 
@@ -200,6 +201,14 @@ printf '%s' '{"captured_at":1700000000,"codex":{"status":"ok","entries":[]},"cla
 AIQ_PROVIDERS=claude AIQ_CACHE_TTL=999999999 run_fetch | jq -e \
     '.captured_at == 1700000000 and .codex.status == "ok" and .claude.source == "claude-code"' >/dev/null
 jq -e '.claude.source == "claude-code" and .codex.status == "ok"' "$test_dir/usage.json" >/dev/null
+
+# The plan comes from Claude Code's current profile, not the login-time credentials.
+jq '.oauthAccount += {organizationType: "claude_pro", organizationRateLimitTier: "default_claude_ai"}' \
+    "$config/.claude.json" > "$config/claude.tmp" && mv "$config/claude.tmp" "$config/.claude.json"
+AIQ_PROVIDERS=claude run_fetch | jq -e '.claude.plan == "Pro"' >/dev/null
+jq '.oauthAccount += {organizationType: "claude_max", organizationRateLimitTier: "default_claude_max_20x"}' \
+    "$config/.claude.json" > "$config/claude.tmp" && mv "$config/claude.tmp" "$config/.claude.json"
+AIQ_PROVIDERS=claude run_fetch | jq -e '.claude.plan == "Max 20x"' >/dev/null
 
 # The status line capture writes a private snapshot.
 printf '%s\n' '{"rate_limits":{"five_hour":{"used_percentage":12,"resets_at":1800000000}}}' | \
