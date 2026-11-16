@@ -6,14 +6,15 @@
 # failures as HTTP 200 with {"success": false, "code": ..., "msg": ...}.
 #
 # Env:
-#   ZAI_API_KEY    Coding Plan API key (plugin setting)
+#   ZAI_API_KEY    Coding Plan API key (plugin setting or AIQ_VAULT_ZAI)
 #   ZAI_API_HOST   api.z.ai (global, default) or open.bigmodel.cn (China)
 
 fetch_zai() {
     key="${ZAI_API_KEY:-}"
+    [ -n "$key" ] || key=$(aiq_vault_key zai)
     host="${ZAI_API_HOST:-api.z.ai}"
     if [ -z "$key" ]; then
-        aiq_status unavailable not_authenticated "Set your Z.ai Coding Plan API key in plugin settings."
+        aiq_status unavailable not_authenticated "Set your Z.ai Coding Plan API key in plugin settings, or AIQ_VAULT_ZAI for a keyring entry."
         return
     fi
     # The key goes only to the two official hosts.

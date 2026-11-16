@@ -9,7 +9,7 @@
 # limits[] windows and a usage summary with limit, used, and remaining counts.
 #
 # Env:
-#   KIMI_API_KEY         Kimi Code API key (plugin setting)
+#   KIMI_API_KEY         Kimi Code API key (plugin setting or AIQ_VAULT_KIMI)
 #   KIMI_CODE_HOME       kimi CLI home (default ~/.kimi-code, then ~/.kimi)
 #   KIMI_CODE_BASE_URL   https://api.kimi.com/coding/v1 (default) or https://api.kimi.ai/coding/v1
 
@@ -25,6 +25,7 @@ kimi_credentials() {
 
 fetch_kimi() {
     key="${KIMI_API_KEY:-}"
+    [ -n "$key" ] || key=$(aiq_vault_key kimi)
     rejected="Kimi rejected this API key. Check the key in plugin settings."
     if [ -z "$key" ]; then
         creds=$(kimi_credentials)

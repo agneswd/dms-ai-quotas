@@ -10,7 +10,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 
 | Provider | Data shown | Credentials |
 |----------|------------|-------------|
-| **Claude** | 5-hour and weekly usage | Local Claude Code login |
+| **Claude** | 5-hour, weekly, and model-scoped weekly usage | Local Claude Code login |
 | **Codex** | 5-hour, weekly, and code review usage | Local Codex login (`codex login`) |
 | **GitHub Copilot** | Premium request, chat, and completions quota snapshots | `gh auth login` or a token environment variable |
 | **OpenCode Go** | Rolling (5h), weekly, and monthly usage | `opencode /connect`, or an API key |
@@ -76,11 +76,22 @@ Use the pin button next to a limit in the popout to choose what the bar pill sho
 
 ## Credentials
 
-The plugin reads credentials from the plugin settings and from local CLI logins. It never refreshes or writes a CLI login. It passes credentials to `curl` in private header files under a temporary directory, never as process arguments, and it does not write them to the cache.
+The plugin reads credentials from the plugin settings, from local CLI logins, and, when you ask for it, from the freedesktop keyring. It never refreshes or writes a CLI login. It passes credentials to `curl` in private header files under a temporary directory, never as process arguments, and it does not write them to the cache.
+
+A setting left empty does not override the environment, so a key exported by a launcher or a service keeps working.
 
 ### Claude
 
-This needs Claude Code 2.1.220 or newer. Sign in once with `claude`. Then add the plugin's capture script as your Claude Code status line in `~/.claude/settings.json`:
+Sign in once with `claude`. The plugin then reads the usage data that Claude Code keeps in `~/.claude.json`. Every Claude Code session writes it, also SDK and IDE sessions. The plugin checks it every 15 seconds.
+
+The plugin asks the Claude usage API only when this data is likely out of date:
+
+- One minute after you use Claude Code, if Claude Code did not refresh the data.
+- Every 15 minutes, to see usage from other devices and claude.ai.
+
+Claude Code uses the same API, so the plugin keeps its requests to a minimum. It asks at most once a minute and waits after HTTP 429. When a window resets, the plugin shows it as unused without a request.
+
+For data after each response in interactive sessions, you can also add the capture script as your Claude Code status line in `~/.claude/settings.json`. This needs Claude Code 2.1.220 or newer:
 
 ```json
 {
@@ -91,7 +102,7 @@ This needs Claude Code 2.1.220 or newer. Sign in once with `claude`. Then add th
 }
 ```
 
-Claude Code sends quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into your script. When the captured data is older than five minutes, the plugin asks the Claude usage API, at most once every five minutes.
+If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into your script.
 
 ### Codex and Grok
 
@@ -111,8 +122,25 @@ The plugin uses the first key it finds:
 1. The **OpenCode Go API Key** setting.
 2. The newest `opencode-go` key in `opencode.db`. Newer OpenCode versions save `/connect` keys there. This needs `sqlite3`.
 3. The `opencode-go` key in `auth.json`.
+4. A keyring entry named by `AIQ_VAULT_OPENCODE`.
 
 Both files are in `OPENCODE_DATA_DIR`, by default `~/.local/share/opencode`.
+
+### Keyring
+
+A key can come from the freedesktop keyring, read at the moment of use, so it never enters the environment. Leave the matching setting empty and give the provider a lookup spec: the attribute/value words `secret-tool lookup` takes. The spec is not a secret, so it can live in any environment file, for example `~/.config/environment.d/90-dms.conf`.
+
+```sh
+AIQ_VAULT_ZAI="service zai username quota"
+AIQ_VAULT_OPENROUTER="service openrouter username quota"
+AIQ_VAULT_OPENCODE="service opencode username quota"
+AIQ_VAULT_KIMI="service kimi username quota"
+AIQ_VAULT_DEEPSEEK="service deepseek username quota"
+```
+
+The shell reads the environment when it starts, so restart it after adding a spec. `AIQ_VAULT_TIMEOUT` bounds the lookup in seconds (default 3): a locked keyring raises a prompt and waits, and the fetch continues without a key rather than blocking. The plugin fetches about once a minute, so a locked keyring can show its unlock prompt again on each fetch until you unlock it.
+
+For Kimi Code, a keyring key comes before the `kimi` login token.
 
 ### Z.ai Coding Plan
 
@@ -132,10 +160,10 @@ Antigravity needs `secret-tool` from libsecret. The plugin reads the access toke
 
 ## How it works
 
-`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes only Claude with `AIQ_PROVIDERS=claude`, which reads local data first. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
 
 ```
-providers/claude.sh       Claude Code status line data, api.anthropic.com fallback
+providers/claude.sh       Claude Code usage cache and status line, api.anthropic.com when stale
 providers/codex.sh        chatgpt.com/backend-api/wham/usage
 providers/copilot.sh     api.github.com/copilot_internal/user
 providers/opencode.sh     opencode.ai/zen/go/v1/usage

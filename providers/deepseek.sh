@@ -2,12 +2,13 @@
 #
 # GET https://api.deepseek.com/user/balance with the API key from plugin settings.
 #
-# Env: DEEPSEEK_API_KEY
+# Env: DEEPSEEK_API_KEY, AIQ_VAULT_DEEPSEEK
 
 fetch_deepseek() {
     key="${DEEPSEEK_API_KEY:-}"
+    [ -n "$key" ] || key=$(aiq_vault_key deepseek)
     if [ -z "$key" ]; then
-        aiq_status unavailable not_authenticated "Set your DeepSeek API key in plugin settings."
+        aiq_status unavailable not_authenticated "Set your DeepSeek API key in plugin settings, or AIQ_VAULT_DEEPSEEK for a keyring entry."
         return
     fi
 

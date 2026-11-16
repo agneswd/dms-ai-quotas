@@ -8,6 +8,8 @@
 #   AIQ_<ID>_ENABLED   "0" to skip a provider, for example AIQ_CODEX_ENABLED=0 (default: "1")
 #   AIQ_CACHE_TTL      seconds before the cache is stale (default: 55)
 #   AIQ_FORCE_REFRESH  "1" to bypass the cache
+#   AIQ_PROVIDERS      space-separated ids to refresh now, for example "claude". The
+#                      others keep their cached results, and the cache keeps its age.
 #   AIQ_USAGE_MOCK     file with sample JSON to print instead (for tests)
 #   CACHE_FILE         cache path (default $XDG_CACHE_HOME/dms-ai-quotas/usage.json)
 # Provider credentials and paths are listed at the top of each provider module.
@@ -21,7 +23,11 @@ ttl="${AIQ_CACHE_TTL:-55}"
 mkdir -p "$(dirname "$cache")" 2>/dev/null
 now=$(date +%s)
 
-if [ "${AIQ_FORCE_REFRESH:-0}" != "1" ] && [ -s "$cache" ]; then
+# A partial refresh merges into the cache, so it needs one to merge into.
+only="${AIQ_PROVIDERS:-}"
+[ -z "$only" ] || [ -s "$cache" ] || only=""
+
+if [ -z "$only" ] && [ "${AIQ_FORCE_REFRESH:-0}" != "1" ] && [ -s "$cache" ]; then
     prev=$(jq -r '.captured_at // 0' "$cache" 2>/dev/null)
     case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
     if [ "$prev" -gt 0 ] && [ $((now - prev)) -lt "$ttl" ]; then
@@ -50,6 +56,9 @@ provider_enabled() {
     [ "$_enabled" = "1" ]
 }
 
+# Partial refresh: run only the requested providers.
+[ -z "$only" ] || providers=$only
+
 for id in $providers; do
     if provider_enabled "$id"; then
         . "$plugin_dir/providers/$id.sh"
@@ -68,7 +77,11 @@ for id in $providers; do
     [ -n "$result" ] || result=$(aiq_status error "" "Could not read $id usage.")
     set -- "$@" --argjson "$id" "$result"
 done
-out=$(jq -c -n "$@" '$ARGS.named') || exit 2
+if [ -n "$only" ]; then
+    out=$(jq -c "$@" '. + ($ARGS.named | del(.captured_at))' "$cache") || exit 2
+else
+    out=$(jq -c -n "$@" '$ARGS.named') || exit 2
+fi
 
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"
