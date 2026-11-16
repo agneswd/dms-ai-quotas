@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [Dux Modular Shell](https://github.com/duxlabs-dev/dux-shell) (DMS, formerly DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas bar pill and popout" width="560"/>
@@ -35,7 +35,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 
 ## Requirements
 
-- DankMaterialShell 1.5.0 or newer
+- DMS 2.0.0 or newer. For DankMaterialShell 1.x, clone the `v1.11.1` tag of AI Quotas: `git clone --branch v1.11.1 https://github.com/agneswd/dms-ai-quotas ~/.config/DankMaterialShell/plugins/aiQuotas`.
 - `curl` and `jq`
 - Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
 - Optional: `secret-tool` from libsecret, for Antigravity only
@@ -45,15 +45,15 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 
 ```sh
 git clone https://github.com/agneswd/dms-ai-quotas \
-          ~/.config/DankMaterialShell/plugins/aiQuotas
+          ~/.config/dms/plugins/aiQuotas
 ```
 
 Then in DMS:
 
 1. Open **Settings - Plugins**.
-2. Click **Scan for Plugins**.
+2. Click **Scan**.
 3. Enable **AI Quotas**.
-4. Add the widget to the bar in **Settings - DankBar Layout**.
+4. Add the widget to the bar in **Settings - Bar widgets**.
 5. Restart the shell with `dms restart`.
 
 ## Settings
@@ -97,7 +97,7 @@ For data after each response in interactive sessions, you can also add the captu
 {
   "statusLine": {
     "type": "command",
-    "command": "sh ~/.config/DankMaterialShell/plugins/aiQuotas/claude-statusline.sh"
+    "command": "sh ~/.config/dms/plugins/aiQuotas/claude-statusline.sh"
   }
 }
 ```
@@ -190,7 +190,7 @@ Run the fetch tests. They use a fake `curl` and fixture credentials:
 for test in tests/test-*.sh; do sh "$test" || echo "FAILED: $test"; done
 ```
 
-Render the plugin offscreen with the real DMS components and the demo data in `tests/fixtures/demo-usage.json`. This needs a DMS installation and `qs`. The render uses its own D-Bus session and temporary XDG directories, so it does not change the running shell. It saves the images to `tests/render-output`:
+Render the plugin with the real DMS components and the demo data in `tests/fixtures/demo-usage.json`. This needs DMS 2.x, `qs`, and `xvfb-run`. The render uses a virtual X server, its own D-Bus session, and temporary XDG directories, so it does not change the running shell. It fails if the plugin uses a component that DMS marks as deprecated. It saves the images to `tests/render-output`:
 
 ```sh
 sh tests/render.sh

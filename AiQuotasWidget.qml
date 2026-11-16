@@ -2,6 +2,7 @@ import QtQuick
 import qs.Common
 import qs.Services
 import qs.Widgets
+import qs.DCommon.Widgets
 import qs.Modules.Plugins
 
 PluginComponent {
@@ -708,7 +709,7 @@ PluginComponent {
                                                 onClicked: root.togglePin(modelData.provider, modelData.pinKey)
                                             }
 
-                                            DankIcon {
+                                            DIcon {
                                                 anchors.centerIn: parent
                                                 name: "push_pin"
                                                 size: Theme.iconSizeSmall

@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Common
 import qs.Widgets
+import qs.DCommon.Widgets
 
 Item {
     id: slider
@@ -55,7 +56,7 @@ Item {
         width: parent.width
         spacing: Theme.spacingM
 
-        DankIcon {
+        DIcon {
             name: slider.leftIcon
             size: Theme.iconSize
             color: slider.enabled ? Theme.surfaceText : Theme.onSurface_38
@@ -369,7 +370,7 @@ Item {
             }
         }
 
-        DankIcon {
+        DIcon {
             name: slider.rightIcon
             size: Theme.iconSize
             color: slider.enabled ? Theme.surfaceText : Theme.onSurface_38

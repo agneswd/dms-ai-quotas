@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Common
 import qs.Widgets
+import qs.DCommon.Widgets
 
 Item {
     id: root
@@ -118,7 +119,7 @@ Item {
                     width: Math.min(implicitWidth, parent.width - (infoIcon.visible ? 20 : 0))
                 }
 
-                DankIcon {
+                DIcon {
                     id: infoIcon
                     name: "info"
                     size: 16
@@ -150,7 +151,7 @@ Item {
                     color: resetArea.containsMouse ? Theme.primaryHoverLight : "transparent"
                 }
 
-                DankIcon {
+                DIcon {
                     name: "restart_alt"
                     size: 16
                     color: Theme.primary
@@ -167,7 +168,7 @@ Item {
                 }
             }
 
-            DankTooltipV2 { id: sharedTooltip }
+            DTooltipV2 { id: sharedTooltip }
         }
 
         // ── Slider Row ────────────────────────────────────────────────────────
