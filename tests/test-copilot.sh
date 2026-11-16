@@ -57,8 +57,21 @@ COPILOT_GH_TOKEN=fixture-gh-token run_fetch '{"quota_snapshots":{"premium_intera
     | jq -e '.copilot.status == "ok" and .copilot.entries[0].percentUsed == 100' >/dev/null
 grep -Fqx 'Authorization: token fixture-gh-token' "$test_dir/headers"
 
+# Counts win over the rounded percentage, and percent_remaining is 0-100, not
+# a fraction: 2 of 300 left and 0.5% left must both read as almost used up.
+COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch \
+    '{"quota_snapshots":{"premium_interactions":{"entitlement":300,"remaining":3,"percent_remaining":50}}}' \
+    | jq -e '.copilot.entries[0].percentUsed == 99' >/dev/null
+COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{"quota_snapshots":{"premium_interactions":{"percent_remaining":0.5}}}' \
+    | jq -e '.copilot.entries[0].percentUsed == 99.5' >/dev/null
+
+# Unlimited snapshots are skipped.
+COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch \
+    '{"quota_snapshots":{"premium_interactions":{"percent_remaining":40},"chat":{"unlimited":true,"percent_remaining":100}}}' \
+    | jq -e '[.copilot.entries[].name] == ["Premium Requests"]' >/dev/null
+
 COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{}' 401 | jq -e '.copilot.status == "error" and .copilot.reason == "auth_expired"' >/dev/null
-COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{}' 403 | jq -e '.copilot.status == "error" and .copilot.reason == "access_denied"' >/dev/null
+COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{}' 403 | jq -e '.copilot.status == "unavailable" and .copilot.reason == "no_access"' >/dev/null
 COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{"quota_snapshots":{"premium_interactions":{"has_quota":false}}}' \
     | jq -e '.copilot.status == "unavailable" and .copilot.reason == "no_quota"' >/dev/null
 run_fetch '{}' | jq -e '.copilot.status == "unavailable" and .copilot.reason == "not_authenticated"' >/dev/null

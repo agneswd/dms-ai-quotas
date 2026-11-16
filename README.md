@@ -12,7 +12,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 |----------|------------|-------------|
 | **Claude** | 5-hour, weekly, and model-scoped weekly usage | Local Claude Code login |
 | **Codex** | 5-hour, weekly, and code review usage | Local Codex login (`codex login`) |
-| **GitHub Copilot** | Premium request, chat, and completions quota snapshots | `gh auth login` or a token environment variable |
+| **GitHub Copilot** | Premium request, chat, and completions quota snapshots | `gh auth login`, or `COPILOT_GITHUB_TOKEN` |
 | **OpenCode Go** | Rolling (5h), weekly, and monthly usage | `opencode /connect`, or an API key |
 | **Z.ai Coding Plan** | 5-hour, weekly, and monthly MCP tool usage | API key |
 | **Kimi Code** | 5-hour, weekly, and monthly usage | API key, or the `kimi` login |
@@ -110,7 +110,7 @@ Sign in with `codex login` and `grok login`. The plugin reads `CODEX_HOME/auth.j
 
 ### GitHub Copilot
 
-The plugin reads usage snapshots from GitHub's Copilot account endpoint. It uses the first available token from `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`, then falls back to `gh auth token`. Sign in with `gh auth login` or provide a token in the DMS environment. Copilot access must be enabled for that GitHub account. The endpoint is an internal API and may change independently of GitHub's stable REST API.
+The plugin reads usage snapshots from GitHub's Copilot account endpoint. It uses `COPILOT_GITHUB_TOKEN` if the DMS environment sets it, and otherwise `gh auth token`. Sign in with `gh auth login`. The plugin does not read `GITHUB_TOKEN`, because that variable often holds a broad token for scripts or CI. Copilot access must be enabled for that GitHub account. The endpoint is an internal API and may change independently of GitHub's stable REST API.
 
 ### OpenCode Go
 
