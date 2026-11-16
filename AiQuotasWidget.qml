@@ -12,6 +12,7 @@ PluginComponent {
     property string displayMode: pluginData.displayMode || "remaining"
     property bool showResetTime: pluginData.showResetTime !== false
     property bool showResetCountdown: pluginData.showResetCountdown === true
+    property bool hideUnusedPins: pluginData.hideUnusedPins === true
     property string pluginDir: {
         var url = Qt.resolvedUrl(".")
         var path = url.toString()
@@ -20,6 +21,9 @@ PluginComponent {
     }
 
     property var usageData: null
+    // Rows the bar pill shows. Empty after a fetch means nothing to show.
+    readonly property var pillRows: usageData ? pillItems() : []
+    readonly property bool pillEmpty: usageData !== null && pillRows.length === 0
     property var pinState: ({})
     property string selectedProvider: "claude"
 
@@ -267,16 +271,18 @@ PluginComponent {
     }
 
     // Pinned rows for the bar pill, with a separator before each new provider.
-    // A blocked provider shows every pinned window as used up.
+    // A blocked provider shows every pinned window as used up. With
+    // hideUnusedPins, a window that rounds to 0% used is left out.
     function pillItems() {
         var out = []
         var enabled = enabledProviders()
         for (var i = 0; i < enabled.length; i++) {
             var pins = effectivePins(enabled[i].id)
-            var rows = providerRows(enabled[i].id).filter(function (row) {
-                return pins.indexOf(row.pinKey) >= 0
-            })
             var blocked = providerBlocked(enabled[i].id)
+            var rows = providerRows(enabled[i].id).filter(function (row) {
+                if (pins.indexOf(row.pinKey) < 0) return false
+                return !hideUnusedPins || row.isBalance || blocked || Math.round(row.percentUsed) > 0
+            })
             for (var j = 0; j < rows.length; j++) {
                 rows[j].separator = out.length > 0 && j === 0
                 if (blocked && !rows[j].isBalance) rows[j].shortValue = Math.round(pctVal(100)) + "%"
@@ -431,8 +437,17 @@ PluginComponent {
                     font.pixelSize: root.barTextSize
                 }
 
+                // Nothing pinned, or every pinned window is hidden as unused
+                DIcon {
+                    visible: root.pillEmpty
+                    name: "smart_toy"
+                    size: Theme.iconSizeSmall
+                    color: Theme.surfaceTextMedium
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
                 Repeater {
-                    model: root.pillItems()
+                    model: root.pillRows
                     delegate: Row {
                         anchors.verticalCenter: parent.verticalCenter
                         // 8px between limits of one provider. A centered separator between providers.
@@ -487,8 +502,16 @@ PluginComponent {
                     font.pixelSize: Theme.fontSizeMedium
                 }
 
+                DIcon {
+                    visible: root.pillEmpty
+                    name: "smart_toy"
+                    size: Theme.iconSizeSmall
+                    color: Theme.surfaceTextMedium
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+
                 Repeater {
-                    model: root.pillItems()
+                    model: root.pillRows
                     delegate: Column {
                         spacing: Theme.spacingXXS
                         Image {
