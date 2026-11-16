@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Common
 import qs.Widgets
+import qs.DCommon.Widgets
 
 Item {
     id: root
@@ -112,7 +113,7 @@ Item {
                     width: Math.min(implicitWidth, parent.width - (infoIcon.visible ? infoIcon.width + parent.spacing : 0))
                 }
 
-                DankIcon {
+                DIcon {
                     id: infoIcon
                     name: "info"
                     size: 16
@@ -131,11 +132,11 @@ Item {
             }
         }
 
-        DankTooltipV2 {
+        DTooltipV2 {
             id: sharedTooltip
         }
 
-        DankToggle {
+        DToggle {
             id: toggle
             anchors.verticalCenter: parent.verticalCenter
             checked: root.value
