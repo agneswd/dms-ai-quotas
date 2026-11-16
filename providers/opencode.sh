@@ -5,7 +5,7 @@
 # Newer opencode versions save that key in opencode.db and can leave an old key
 # in auth.json, so the database wins when sqlite3 is installed.
 #
-# Env: OPENCODE_GO_API_KEY, OPENCODE_API_KEY, OPENCODE_DATA_DIR
+# Env: OPENCODE_GO_API_KEY, OPENCODE_API_KEY, OPENCODE_DATA_DIR, AIQ_VAULT_OPENCODE
 
 # Print the newest OpenCode Go key from opencode.db, or nothing.
 opencode_db_key() {
@@ -23,8 +23,9 @@ fetch_opencode() {
     data_dir="${OPENCODE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/opencode}"
     [ -n "$key" ] || key=$(opencode_db_key "$data_dir")
     [ -n "$key" ] || key=$(jq -r '."opencode-go".key // empty' "$data_dir/auth.json" 2>/dev/null)
+    [ -n "$key" ] || key=$(aiq_vault_key opencode)
     if [ -z "$key" ]; then
-        aiq_status unavailable not_authenticated "OpenCode Go is not connected. Run opencode /connect and choose OpenCode Go, or set an API key in plugin settings."
+        aiq_status unavailable not_authenticated "OpenCode Go is not connected. Run opencode /connect and choose OpenCode Go, set an API key in plugin settings, or set AIQ_VAULT_OPENCODE for a keyring entry."
         return
     fi
 

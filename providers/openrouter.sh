@@ -2,12 +2,13 @@
 #
 # GET https://openrouter.ai/api/v1/credits. Some keys need management access.
 #
-# Env: OPENROUTER_API_KEY
+# Env: OPENROUTER_API_KEY, AIQ_VAULT_OPENROUTER
 
 fetch_openrouter() {
     key="${OPENROUTER_API_KEY:-}"
+    [ -n "$key" ] || key=$(aiq_vault_key openrouter)
     if [ -z "$key" ]; then
-        aiq_status unavailable not_authenticated "Set your OpenRouter API key in plugin settings."
+        aiq_status unavailable not_authenticated "Set your OpenRouter API key in plugin settings, or AIQ_VAULT_OPENROUTER for a keyring entry."
         return
     fi
 
