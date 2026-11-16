@@ -11,10 +11,11 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || kimiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || copilotEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || kimiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
+                copilotEnabled.resetToDefault()
                 openCodeEnabled.resetToDefault()
                 zaiEnabled.resetToDefault()
                 kimiEnabled.resetToDefault()
@@ -40,6 +41,16 @@ PluginSettings {
             settingKey: "codexEnabled"
             label: I18n.tr("Codex")
             description: I18n.tr("Show usage limits from your local Codex login.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: copilotEnabled
+            settingKey: "copilotEnabled"
+            label: I18n.tr("GitHub Copilot")
+            description: I18n.tr("Show quota snapshots from your local GitHub login.")
             defaultValue: true
         }
 

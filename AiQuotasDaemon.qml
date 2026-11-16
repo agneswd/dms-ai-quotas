@@ -13,6 +13,7 @@ PluginComponent {
     readonly property var toggleSettings: ({
         claudeEnabled: "AIQ_CLAUDE_ENABLED",
         codexEnabled: "AIQ_CODEX_ENABLED",
+        copilotEnabled: "AIQ_COPILOT_ENABLED",
         openCodeEnabled: "AIQ_OPENCODE_ENABLED",
         zaiEnabled: "AIQ_ZAI_ENABLED",
         kimiEnabled: "AIQ_KIMI_ENABLED",

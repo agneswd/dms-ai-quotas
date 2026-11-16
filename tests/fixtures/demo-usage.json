@@ -8,6 +8,10 @@
     {"name": "Weekly", "percentUsed": 44, "resetIn": 400000},
     {"name": "Code Review", "percentUsed": 3, "resetIn": 400000}
   ]},
+  "copilot": {"status": "ok", "plan": "individual", "entries": [
+    {"name": "Premium Requests", "percentUsed": 38, "resetIn": 1200000},
+    {"name": "Chat", "percentUsed": 12, "resetIn": 1200000}
+  ]},
   "opencode": {"status": "ok", "entries": [
     {"name": "Rolling", "percentUsed": 22, "resetIn": 12000},
     {"name": "Weekly", "percentUsed": 35.1, "resetIn": 300000},

@@ -12,6 +12,7 @@ run_fetch() {
     env \
         AIQ_CLAUDE_ENABLED=0 \
         AIQ_CODEX_ENABLED=0 \
+        AIQ_COPILOT_ENABLED=0 \
         AIQ_OPENCODE_ENABLED=0 \
         AIQ_DEEPSEEK_ENABLED=0 \
         AIQ_GROK_ENABLED=0 \

@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
+Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas bar pill and popout" width="560"/>
@@ -12,6 +12,7 @@ Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok,
 |----------|------------|-------------|
 | **Claude** | 5-hour, weekly, and model-scoped weekly usage | Local Claude Code login |
 | **Codex** | 5-hour, weekly, and code review usage | Local Codex login (`codex login`) |
+| **GitHub Copilot** | Premium request, chat, and completions quota snapshots | `gh auth login`, or `COPILOT_GITHUB_TOKEN` |
 | **OpenCode Go** | Rolling (5h), weekly, and monthly usage | `opencode /connect`, or an API key |
 | **Z.ai Coding Plan** | 5-hour, weekly, and monthly MCP tool usage | API key |
 | **Kimi Code** | 5-hour, weekly, and monthly usage | API key, or the `kimi` login |
@@ -38,6 +39,7 @@ Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok,
 - `curl` and `jq`
 - Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
 - Optional: `secret-tool` from libsecret, for Antigravity only
+- Optional: GitHub CLI (`gh`), to read a GitHub token for Copilot
 
 ## Install
 
@@ -106,6 +108,10 @@ If you already use a custom status line, merge the two `rate_limits` fields from
 
 Sign in with `codex login` and `grok login`. The plugin reads `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and `GROK_HOME/auth.json` (default `~/.grok/auth.json`).
 
+### GitHub Copilot
+
+The plugin reads usage snapshots from GitHub's Copilot account endpoint. It uses `COPILOT_GITHUB_TOKEN` if the DMS environment sets it, and otherwise `gh auth token`. Sign in with `gh auth login`. The plugin does not read `GITHUB_TOKEN`, because that variable often holds a broad token for scripts or CI. Copilot access must be enabled for that GitHub account. The endpoint is an internal API and may change independently of GitHub's stable REST API.
+
 ### OpenCode Go
 
 1. Subscribe to Go at [opencode.ai](https://opencode.ai) and copy the API key.
@@ -159,6 +165,7 @@ Antigravity needs `secret-tool` from libsecret. The plugin reads the access toke
 ```
 providers/claude.sh       Claude Code usage cache and status line, api.anthropic.com when stale
 providers/codex.sh        chatgpt.com/backend-api/wham/usage
+providers/copilot.sh     api.github.com/copilot_internal/user
 providers/opencode.sh     opencode.ai/zen/go/v1/usage
 providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit
 providers/kimi.sh         api.kimi.com/coding/v1/usages
