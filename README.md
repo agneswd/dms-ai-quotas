@@ -65,6 +65,7 @@ Then in DMS:
 | Show Reset Times | on | Show reset information in the popout |
 | Show Reset Countdown | off | Show a countdown instead of the reset date and time |
 | Display Mode | Remaining (%) | Show remaining or used percentages |
+| Hide Unused Pins | off | Leave a pinned limit out of the bar while it is at 0% used |
 | OpenCode Go API Key | empty | Optional. Overrides the key from `opencode /connect` |
 | Z.ai Coding Plan API Key | empty | Your GLM Coding Plan API key |
 | Z.ai Region | Global | Global (`api.z.ai`) or China (`open.bigmodel.cn`) |
@@ -72,7 +73,7 @@ Then in DMS:
 | DeepSeek API Key | empty | From [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
 | OpenRouter API Key | empty | From [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
 
-Use the pin button next to a limit in the popout to choose what the bar pill shows.
+Use the pin button next to a limit in the popout to choose what the bar pill shows. If the pill has nothing to show, it shows a small robot icon.
 
 ## Credentials
 
