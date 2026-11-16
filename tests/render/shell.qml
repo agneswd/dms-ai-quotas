@@ -160,10 +160,34 @@ ShellRoot {
         console.warn("AIQ pins: " + steps.join(" | "))
     }
 
+    // Hide Unused Pins on the real widget: Codex 5h at 0.3% used is left out,
+    // a balance stays, a blocked provider stays, and with no pins left the
+    // pill reports itself empty so it can show its icon.
+    function checkUnusedPins() {
+        var savedData = widget.usageData
+        var savedPins = widget.pinState
+        var data = JSON.parse(JSON.stringify(savedData))
+        data.codex.entries[0].percentUsed = 0.3
+        data.zai.entries.forEach(function (entry) { entry.percentUsed = entry.name === "5h" ? 0 : 100 })
+        widget.usageData = data
+        widget.hideUnusedPins = true
+        var shown = widget.pillRows.map(function (item) { return item.provider }).join(",")
+        var empty = {}
+        Object.keys(savedPins).forEach(function (id) { empty[id] = [] })
+        widget.pinState = empty
+        var steps = [shown, String(widget.pillEmpty)]
+        widget.hideUnusedPins = false
+        widget.pinState = savedPins
+        widget.usageData = savedData
+        steps.push(String(widget.pillEmpty))
+        console.warn("AIQ unused: " + steps.join(" | "))
+    }
+
     // Select a tab, wait for the tab animation, save, then continue.
     function nextShot() {
         if (shots.length === 0) {
             checkPins()
+            checkUnusedPins()
             console.warn("AIQ done")
             Qt.callLater(Qt.quit)
             return

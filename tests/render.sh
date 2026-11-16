@@ -7,9 +7,9 @@ set -eu
 #
 # Saves one PNG per provider tab, vertical.png, settings.png, pill.txt, and
 # quickshell.log to AIQ_TEST_ARTIFACT_DIR (default tests/render-output).
-# Failures: QML errors or DMS deprecation warnings in plugin files, a pill that does not show the expected
-# value for every provider, pins that cannot fall back or be removed, and
-# missing images.
+# Failures: QML errors or DMS deprecation warnings in plugin files, a pill that
+# does not show the expected value for every provider, pins that cannot fall
+# back or be removed, unused pins that do not hide, and missing images.
 #
 # Needs Dux Modular Shell (DMS) 2.x, quickshell (qs), xvfb-run, dbus-run-session,
 # and jq. The render uses temporary XDG directories, its own D-Bus session, and
@@ -103,6 +103,10 @@ sed -n 's/.*AIQ pill: //p' "$out/quickshell.log" > "$out/pill.txt"
     fail "Unexpected pill: $(cat "$out/pill.txt") (expected: $expected_pill)"
 pins=$(sed -n 's/.*AIQ pins: //p' "$out/quickshell.log")
 [ "$pins" = '5h | Weekly |  | 5h' ] || fail "Unexpected pin behavior: $pins (expected: 5h | Weekly |  | 5h)"
+unused=$(sed -n 's/.*AIQ unused: //p' "$out/quickshell.log")
+expected_unused='claude,copilot,opencode,zai,kimi,deepseek,openrouter,grok,antigravity | true | false'
+[ "$unused" = "$expected_unused" ] ||
+    fail "Unexpected Hide Unused Pins behavior: $unused (expected: $expected_unused)"
 for name in claude codex copilot opencode zai kimi deepseek openrouter grok antigravity vertical settings; do
     [ -s "$out/$name.png" ] || fail "Missing $name.png."
 done
