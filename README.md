@@ -128,9 +128,13 @@ A key can come from the freedesktop keyring, read at the moment of use, so it ne
 AIQ_VAULT_ZAI="service zai username quota"
 AIQ_VAULT_OPENROUTER="service openrouter username quota"
 AIQ_VAULT_OPENCODE="service opencode username quota"
+AIQ_VAULT_KIMI="service kimi username quota"
+AIQ_VAULT_DEEPSEEK="service deepseek username quota"
 ```
 
-The shell reads the environment when it starts, so restart it after adding a spec. `AIQ_VAULT_TIMEOUT` bounds the lookup in seconds (default 3): a locked keyring raises a prompt and waits, and the fetch continues without a key rather than blocking.
+The shell reads the environment when it starts, so restart it after adding a spec. `AIQ_VAULT_TIMEOUT` bounds the lookup in seconds (default 3): a locked keyring raises a prompt and waits, and the fetch continues without a key rather than blocking. The plugin fetches about once a minute, so a locked keyring can show its unlock prompt again on each fetch until you unlock it.
+
+For Kimi Code, a keyring key comes before the `kimi` login token.
 
 ### Z.ai Coding Plan
 
