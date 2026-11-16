@@ -39,9 +39,12 @@ PluginComponent {
     }
 
     property var usageData: null
+    // Fetch requests are serialized. A queued full fetch replaces a queued Claude fetch.
     property bool fetchQueued: false
     property bool queuedForce: false
+    property bool queuedClaudeOnly: false
     property bool activeForce: false
+    property bool activeClaudeOnly: false
     property string lastFetchSignature: ""
 
     // Environment for one fetch, without the force flag. A value typed into
@@ -67,12 +70,22 @@ PluginComponent {
         onTriggered: root.requestFetch()
     }
 
+    // Claude reads local snapshots first, so a Claude-only refresh is cheap. It
+    // shows new Claude Code usage within seconds instead of one refresh interval.
+    Timer {
+        interval: 15000
+        running: root.pluginData.claudeEnabled !== false
+        repeat: true
+        onTriggered: root.requestClaudeFetch()
+    }
+
     Process {
         id: fetchProcess
         command: ["sh", root.pluginDir + "fetch-usage.sh"]
         environment: {
             var env = root.settingsEnvironment()
             env.AIQ_FORCE_REFRESH = root.activeForce ? "1" : "0"
+            env.AIQ_PROVIDERS = root.activeClaudeOnly ? "claude" : ""
             return env
         }
         stdout: SplitParser {
@@ -87,7 +100,10 @@ PluginComponent {
         }
         stderr: SplitParser { onRead: line => {} }
         onExited: code => {
-            if (root.fetchQueued) {
+            if (root.queuedClaudeOnly) {
+                root.queuedClaudeOnly = false
+                Qt.callLater(root.requestClaudeFetch)
+            } else if (root.fetchQueued) {
                 var force = root.queuedForce
                 root.fetchQueued = false
                 root.queuedForce = false
@@ -104,9 +120,22 @@ PluginComponent {
         if (fetchProcess.running) {
             fetchQueued = true
             queuedForce = queuedForce || force === true
+            queuedClaudeOnly = false
             return
         }
         activeForce = force === true
+        activeClaudeOnly = false
+        fetchProcess.running = true
+    }
+
+    // Refresh only Claude and keep the other providers from the cache.
+    function requestClaudeFetch() {
+        if (fetchProcess.running) {
+            queuedClaudeOnly = !fetchQueued
+            return
+        }
+        activeForce = false
+        activeClaudeOnly = true
         fetchProcess.running = true
     }
 

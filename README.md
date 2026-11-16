@@ -10,7 +10,7 @@ Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok,
 
 | Provider | Data shown | Credentials |
 |----------|------------|-------------|
-| **Claude** | 5-hour and weekly usage | Local Claude Code login |
+| **Claude** | 5-hour, weekly, and model-scoped weekly usage | Local Claude Code login |
 | **Codex** | 5-hour, weekly, and code review usage | Local Codex login (`codex login`) |
 | **OpenCode Go** | Rolling (5h), weekly, and monthly usage | `opencode /connect`, or an API key |
 | **Z.ai Coding Plan** | 5-hour, weekly, and monthly MCP tool usage | API key |
@@ -80,7 +80,16 @@ A setting left empty does not override the environment, so a key exported by a l
 
 ### Claude
 
-This needs Claude Code 2.1.220 or newer. Sign in once with `claude`. Then add the plugin's capture script as your Claude Code status line in `~/.claude/settings.json`:
+Sign in once with `claude`. The plugin then reads the usage data that Claude Code keeps in `~/.claude.json`. Every Claude Code session writes it, also SDK and IDE sessions. The plugin checks it every 15 seconds.
+
+The plugin asks the Claude usage API only when this data is likely out of date:
+
+- One minute after you use Claude Code, if Claude Code did not refresh the data.
+- Every 15 minutes, to see usage from other devices and claude.ai.
+
+Claude Code uses the same API, so the plugin keeps its requests to a minimum. It asks at most once a minute and waits after HTTP 429. When a window resets, the plugin shows it as unused without a request.
+
+For data after each response in interactive sessions, you can also add the capture script as your Claude Code status line in `~/.claude/settings.json`. This needs Claude Code 2.1.220 or newer:
 
 ```json
 {
@@ -91,7 +100,7 @@ This needs Claude Code 2.1.220 or newer. Sign in once with `claude`. Then add th
 }
 ```
 
-Claude Code sends quota data after the first response in a session. If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into your script. When the captured data is older than five minutes, the plugin asks the Claude usage API, at most once every five minutes.
+If you already use a custom status line, merge the two `rate_limits` fields from `claude-statusline.sh` into your script.
 
 ### Codex and Grok
 
@@ -141,10 +150,10 @@ Antigravity needs `secret-tool` from libsecret. The plugin reads the access toke
 
 ## How it works
 
-`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes only Claude with `AIQ_PROVIDERS=claude`, which reads local data first. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
 
 ```
-providers/claude.sh       Claude Code status line data, api.anthropic.com fallback
+providers/claude.sh       Claude Code usage cache and status line, api.anthropic.com when stale
 providers/codex.sh        chatgpt.com/backend-api/wham/usage
 providers/opencode.sh     opencode.ai/zen/go/v1/usage
 providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit

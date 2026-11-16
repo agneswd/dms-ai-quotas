@@ -179,6 +179,7 @@ PluginComponent {
         if (id === "opencode") return name
         if (name === "5h") return "5 hour usage limit"
         if (name === "Weekly") return id === "claude" ? "Weekly usage limit (all models)" : "Weekly usage limit"
+        if (id === "claude" && name.indexOf("Weekly ") === 0) return "Weekly usage limit (" + name.slice(7) + ")"
         if (name === "Code Review") return "Code review usage limit"
         if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         if (id === "kimi" && name === "Monthly Code") return "Monthly Kimi Code limit"

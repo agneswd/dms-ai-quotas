@@ -3,7 +3,7 @@
   "id": "aiQuotas",
   "name": "AI Quotas",
   "description": "Monitor Claude, Codex, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your bar.",
-  "version": "1.10.0",
+  "version": "1.11.1",
   "author": "agneswd",
   "license": "MIT",
   "type": "composite",
