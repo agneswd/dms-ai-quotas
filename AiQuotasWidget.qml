@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -27,6 +28,10 @@ PluginComponent {
     property var pinState: ({})
     property string selectedProvider: "claude"
 
+    readonly property bool lightSurface: Theme.isLightColor
+        ? Theme.isLightColor(Theme.surfaceContainerHigh)
+        : Theme.isLightMode
+
     // Providers in display order. The ids match the keys in fetch-usage.sh output
     // and the assets/<id>-logo.svg file names. "limits" providers report usage
     // windows in data.entries. "balance" providers report money in data.balances.
@@ -34,16 +39,50 @@ PluginComponent {
     // the pill shows it as used up.
     readonly property var providers: [
         { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
-        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
-        { id: "copilot", label: "Copilot", title: "GitHub Copilot", enabledKey: "copilotEnabled", kind: "limits", defaultPins: ["Premium Requests"], blockingWindows: ["Premium Requests"] },
-        { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"] },
+        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"], monochrome: true },
+        { id: "copilot", label: "Copilot", title: "GitHub Copilot", enabledKey: "copilotEnabled", kind: "limits", defaultPins: ["Premium Requests"], blockingWindows: ["Premium Requests"], monochrome: true },
+        { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"], lightLogo: true },
         { id: "zai", label: "Z.ai", title: "Z.ai Coding Plan", enabledKey: "zaiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
         { id: "kimi", label: "Kimi", title: "Kimi Code", enabledKey: "kimiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly", "Monthly"] },
         { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
-        { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
-        { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [] },
+        { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [], lightMonochrome: true },
+        { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [], monochrome: true },
         { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini Models - Five Hour Limit Remaining"], blockingWindows: [] }
     ]
+
+    function logoSource(p) {
+        if (!p) return ""
+        var suffix = (p.lightLogo && lightSurface) ? "-logo-light.svg" : "-logo.svg"
+        return root.pluginDir + "assets/" + p.id + suffix
+    }
+
+    function logoTint(p) {
+        if (!p) return "transparent"
+        if (p.monochrome || (p.lightMonochrome && lightSurface)) return Theme.surfaceText
+        return "transparent"
+    }
+
+    component ProviderLogo: Image {
+        id: logo
+        required property string providerId
+        required property real size
+        readonly property var info: root.provider(providerId)
+        readonly property color tintColor: root.logoTint(info)
+        readonly property bool hasTint: tintColor.a > 0
+
+        source: root.logoSource(info)
+        sourceSize.width: size
+        sourceSize.height: size
+        width: size
+        height: size
+        fillMode: Image.PreserveAspectFit
+        layer.enabled: hasTint
+        layer.smooth: true
+        layer.effect: MultiEffect {
+            colorization: 1.0
+            colorizationColor: logo.tintColor
+        }
+    }
 
     function loadUsageData() {
         try {
@@ -462,12 +501,9 @@ PluginComponent {
                             opacity: 0.4
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        Image {
-                            source: root.pluginDir + "assets/" + modelData.provider + "-logo.svg"
-                            sourceSize.width: Theme.iconSizeSmall
-                            sourceSize.height: Theme.iconSizeSmall
-                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
-                            fillMode: Image.PreserveAspectFit
+                        ProviderLogo {
+                            providerId: modelData.provider
+                            size: Theme.iconSizeSmall
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         StyledText {
@@ -514,12 +550,9 @@ PluginComponent {
                     model: root.pillRows
                     delegate: Column {
                         spacing: Theme.spacingXXS
-                        Image {
-                            source: root.pluginDir + "assets/" + modelData.provider + "-logo.svg"
-                            sourceSize.width: Theme.iconSizeSmall
-                            sourceSize.height: Theme.iconSizeSmall
-                            width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
-                            fillMode: Image.PreserveAspectFit
+                        ProviderLogo {
+                            providerId: modelData.provider
+                            size: Theme.iconSizeSmall
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         StyledText {
@@ -606,12 +639,9 @@ PluginComponent {
                                 anchors.centerIn: parent
                                 spacing: Theme.spacingXS
 
-                                Image {
-                                    source: root.pluginDir + "assets/" + modelData.id + "-logo.svg"
-                                    sourceSize.width: Theme.iconSizeSmall
-                                    sourceSize.height: Theme.iconSizeSmall
-                                    width: Theme.iconSizeSmall; height: Theme.iconSizeSmall
-                                    fillMode: Image.PreserveAspectFit
+                                ProviderLogo {
+                                    providerId: modelData.id
+                                    size: Theme.iconSizeSmall
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
@@ -678,12 +708,9 @@ PluginComponent {
                                         width: parent.width
                                         spacing: Theme.spacingM
 
-                                        Image {
-                                            source: root.pluginDir + "assets/" + modelData.provider + "-logo.svg"
-                                            sourceSize.width: Theme.iconSize + Theme.spacingXS
-                                            sourceSize.height: Theme.iconSize + Theme.spacingXS
-                                            width: Theme.iconSize + Theme.spacingXS; height: width
-                                            fillMode: Image.PreserveAspectFit
+                                        ProviderLogo {
+                                            providerId: modelData.provider
+                                            size: Theme.iconSize + Theme.spacingXS
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
 
