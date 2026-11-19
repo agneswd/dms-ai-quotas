@@ -119,12 +119,17 @@ jq --argjson past $((now - 60)) '.entries[0].resetAt = $past' "$native_file" > "
 ANTIGRAVITY_USAGE_FILE="$native_file" run_fetch | jq -e '
     .antigravity.status == "ok"
     and .antigravity.source == "native"
+    and .antigravity.stale == false
     and .antigravity.plan == "Pro"
     and .antigravity.email == "developer@example.invalid"
     and .antigravity.entries[0] == {name: "Gemini Models - Five Hour Limit Remaining", percentUsed: 0, resetAt: 0}
     and .antigravity.entries[1] == {name: "Gemini Models - Weekly Limit Remaining", percentUsed: 6, resetAt: 1893542400}
 ' >/dev/null
 [ ! -s "$requests" ]
+
+# A snapshot from more than an hour ago is still used, but marked stale.
+jq --argjson old $((now - 3600)) '.captured_at = $old' "$native_file" > "$native_file.tmp" && mv "$native_file.tmp" "$native_file"
+ANTIGRAVITY_USAGE_FILE="$native_file" run_fetch | jq -e '.antigravity.status == "ok" and .antigravity.stale == true' >/dev/null
 
 set_token 2030-01-01T00:00:00Z
 run_fetch >/dev/null

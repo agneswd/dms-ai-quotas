@@ -2,7 +2,8 @@
 #
 # Prefers the local snapshot written by antigravity-statusline.sh
 # ($ANTIGRAVITY_USAGE_FILE, default $XDG_CACHE_HOME/dms-ai-quotas/antigravity-native.json),
-# rolling over expired windows to 0% used. When no snapshot is present, falls
+# rolling over expired windows to 0% used. agy writes the snapshot only on a turn,
+# so a snapshot older than one hour is marked stale. When no snapshot is present, falls
 # back to reading the agy keyring entry and querying daily-cloudcode-pa.googleapis.com.
 # agy owns the login: this module never refreshes the token.
 
@@ -24,6 +25,7 @@ fetch_antigravity() {
                 plan: (.plan // ""),
                 source: "native",
                 capturedAt: (.captured_at // 0),
+                stale: ($now - (.captured_at // 0) >= 3600),
                 entries: [.entries[] | if (.resetAt // 0) > 0 and .resetAt <= $now
                     then .percentUsed = 0 | .resetAt = 0 else . end]
               }

@@ -138,11 +138,11 @@ PluginComponent {
     function providerNotice(id) {
         var data = providerData(id)
         if (!data) return null
-        if (id === "claude" && data.stale === true) {
+        if (data.stale === true) {
             return {
                 text: data.capturedAt > 0
                     ? "Updated " + clockTime(new Date(data.capturedAt * 1000)) + " - may be stale"
-                    : "Claude usage data is stale",
+                    : provider(id).label + " usage data is stale",
                 color: Theme.warning
             }
         }
