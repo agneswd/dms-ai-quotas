@@ -78,6 +78,60 @@ AIQ_TEST_QUOTA_HTTP=000 run_fetch | jq -e '.antigravity.reason == "network"' >/d
 AIQ_TEST_PROJECT_BODY=invalid run_fetch | jq -e '.antigravity.status == "error"' >/dev/null
 AIQ_TEST_QUOTA_BODY=invalid run_fetch | jq -e '.antigravity.status == "error"' >/dev/null
 
+AIQ_TEST_PROJECT_BODY='{"ineligibleTiers":[{"reasonCode":"UNSUPPORTED_CLIENT"}]}' \
+    run_fetch | jq -e '.antigravity.status == "error" and .antigravity.reason == "unsupported_client" and (.antigravity.error | contains("antigravity-statusline.sh"))' >/dev/null
+
+# Status line capture writes a private snapshot with empty stdout and skips disabled buckets.
+native_file="$test_dir/antigravity-native.json"
+now=$(date +%s)
+stdout_capture=$(printf '%s\n' '{
+    "email": "developer@example.invalid",
+    "plan_tier": "Pro",
+    "quota": {
+        "claude-5h": {"remaining_fraction": 0.45, "reset_time": "2030-01-01T00:00:00Z"},
+        "gemini-weekly": {"remaining_fraction": 0.9378, "reset_time": "2030-01-02T00:00:00.5+00:00"},
+        "gemini-5h": {"remaining_fraction": 0.8, "reset_in_seconds": 3600},
+        "disabled-bucket": {"remaining_fraction": 0.1, "disabled": true},
+        "credits-only": {"remaining_amount": 50}
+    }
+}' | ANTIGRAVITY_USAGE_FILE="$native_file" sh "$repo/antigravity-statusline.sh")
+[ -z "$stdout_capture" ]
+[ "$(stat -c %a "$native_file")" = "600" ]
+jq -e --argjson now "$now" '
+    .email == "developer@example.invalid"
+    and .plan == "Pro"
+    and (.entries | length) == 3
+    and .entries[0].name == "Gemini Models - Five Hour Limit Remaining"
+    and .entries[0].percentUsed == 20
+    and .entries[0].resetAt >= ($now + 3595)
+    and .entries[1] == {name: "Gemini Models - Weekly Limit Remaining", percentUsed: 6, resetAt: 1893542400}
+    and .entries[2] == {name: "Claude Models - Five Hour Limit Remaining", percentUsed: 55, resetAt: 1893456000}
+' "$native_file" >/dev/null
+
+# Empty or malformed statusLine input exits 0 and preserves the previous snapshot.
+printf '%s\n' '{"agent_state":"idle"}' | ANTIGRAVITY_USAGE_FILE="$native_file" sh "$repo/antigravity-statusline.sh"
+printf '%s\n' 'not-json' | ANTIGRAVITY_USAGE_FILE="$native_file" sh "$repo/antigravity-statusline.sh"
+jq -e '(.entries | length) == 3' "$native_file" >/dev/null
+
+# Native snapshot takes precedence without calling curl, and expired windows roll over to 0%.
+printf '%s\n' '{}' > "$keyring"
+jq --argjson past $((now - 60)) '.entries[0].resetAt = $past' "$native_file" > "$native_file.tmp" && mv "$native_file.tmp" "$native_file"
+ANTIGRAVITY_USAGE_FILE="$native_file" run_fetch | jq -e '
+    .antigravity.status == "ok"
+    and .antigravity.source == "native"
+    and .antigravity.stale == false
+    and .antigravity.plan == "Pro"
+    and .antigravity.email == "developer@example.invalid"
+    and .antigravity.entries[0] == {name: "Gemini Models - Five Hour Limit Remaining", percentUsed: 0, resetAt: 0}
+    and .antigravity.entries[1] == {name: "Gemini Models - Weekly Limit Remaining", percentUsed: 6, resetAt: 1893542400}
+' >/dev/null
+[ ! -s "$requests" ]
+
+# A snapshot from more than an hour ago is still used, but marked stale.
+jq --argjson old $((now - 3600)) '.captured_at = $old' "$native_file" > "$native_file.tmp" && mv "$native_file.tmp" "$native_file"
+ANTIGRAVITY_USAGE_FILE="$native_file" run_fetch | jq -e '.antigravity.status == "ok" and .antigravity.stale == true' >/dev/null
+
+set_token 2030-01-01T00:00:00Z
 run_fetch >/dev/null
 if [ -n "${AIQ_TEST_ARTIFACT_DIR:-}" ]; then
     mkdir -p "$AIQ_TEST_ARTIFACT_DIR"
