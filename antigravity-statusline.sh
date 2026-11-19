@@ -12,7 +12,6 @@ data=$(jq -c --argjson now "$now" '
         else (.[0:1] | ascii_upcase) + .[1:]
         end;
     def clamp_pct: if . < 0 then 0 elif . > 100 then 100 else . end;
-    def round2: (. * 100 | round) / 100;
     def parse_ts:
         if type == "number" then (if . >= 100000000000 then (. / 1000 | floor) else (. | floor) end)
         elif type == "string" and . != "" then
@@ -37,11 +36,12 @@ data=$(jq -c --argjson now "$now" '
         elif $p == "gpt" or $p == "openai" then 2
         else 3
         end;
+    # Same bucket names as the retrieveUserQuotaSummary API, so pins match on both paths.
     def window_label($w):
-        if $w == "5h" or $w == "five-hour" or $w == "five_hour" then "5 hour usage limit"
-        elif $w == "weekly" or $w == "7d" or $w == "seven-day" or $w == "seven_day" then "Weekly usage limit"
-        elif $w == "daily" or $w == "1d" or $w == "24h" then "Daily usage limit"
-        elif $w == "monthly" or $w == "30d" then "Monthly usage limit"
+        if $w == "5h" or $w == "five-hour" or $w == "five_hour" then "Five Hour Limit Remaining"
+        elif $w == "weekly" or $w == "7d" or $w == "seven-day" or $w == "seven_day" then "Weekly Limit Remaining"
+        elif $w == "daily" or $w == "1d" or $w == "24h" then "Daily Limit Remaining"
+        elif $w == "monthly" or $w == "30d" then "Monthly Limit Remaining"
         else ($w | gsub("[-_]"; " ") | cap)
         end;
     def window_rank($w):
@@ -79,7 +79,7 @@ data=$(jq -c --argjson now "$now" '
                 rank: $m.rank,
                 entry: {
                     name: $m.name,
-                    percentUsed: ((1 - .rem) * 100 | clamp_pct | round2),
+                    percentUsed: ((1 - .rem) * 100 | clamp_pct | round),
                     resetAt: (.value | reset_at)
                 }
             }

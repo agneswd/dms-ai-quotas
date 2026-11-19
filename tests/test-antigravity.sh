@@ -101,11 +101,11 @@ jq -e --argjson now "$now" '
     .email == "developer@example.invalid"
     and .plan == "Pro"
     and (.entries | length) == 3
-    and .entries[0].name == "Gemini Models - 5 hour usage limit"
+    and .entries[0].name == "Gemini Models - Five Hour Limit Remaining"
     and .entries[0].percentUsed == 20
     and .entries[0].resetAt >= ($now + 3595)
-    and .entries[1] == {name: "Gemini Models - Weekly usage limit", percentUsed: 6.22, resetAt: 1893542400}
-    and .entries[2] == {name: "Claude Models - 5 hour usage limit", percentUsed: 55, resetAt: 1893456000}
+    and .entries[1] == {name: "Gemini Models - Weekly Limit Remaining", percentUsed: 6, resetAt: 1893542400}
+    and .entries[2] == {name: "Claude Models - Five Hour Limit Remaining", percentUsed: 55, resetAt: 1893456000}
 ' "$native_file" >/dev/null
 
 # Empty or malformed statusLine input exits 0 and preserves the previous snapshot.
@@ -121,8 +121,8 @@ ANTIGRAVITY_USAGE_FILE="$native_file" run_fetch | jq -e '
     and .antigravity.source == "native"
     and .antigravity.plan == "Pro"
     and .antigravity.email == "developer@example.invalid"
-    and .antigravity.entries[0] == {name: "Gemini Models - 5 hour usage limit", percentUsed: 0, resetAt: 0}
-    and .antigravity.entries[1] == {name: "Gemini Models - Weekly usage limit", percentUsed: 6.22, resetAt: 1893542400}
+    and .antigravity.entries[0] == {name: "Gemini Models - Five Hour Limit Remaining", percentUsed: 0, resetAt: 0}
+    and .antigravity.entries[1] == {name: "Gemini Models - Weekly Limit Remaining", percentUsed: 6, resetAt: 1893542400}
 ' >/dev/null
 [ ! -s "$requests" ]
 
