@@ -83,6 +83,27 @@ else
     out=$(jq -c -n "$@" '$ARGS.named') || exit 2
 fi
 
+# A transient failure (network, HTTP 429 or 5xx, an unreadable answer) keeps the
+# last good result for up to a day, marked stale, so one bad request does not
+# blank a provider. Login and access errors always show. The age comes from the
+# result's own capturedAt, else from the cache. Windows whose reset passed show as unused.
+prev=$(jq -c 'select(type == "object")' "$cache" 2>/dev/null) || prev=""
+out=$(printf '%s' "$out" | jq -c --argjson prev "${prev:-"{}"}" --argjson now "$now" '
+    with_entries(if .key == "captured_at" then . else
+        .key as $id | .value as $new | ($prev[$id] // null) as $old
+        | ($old.capturedAt // $prev.captured_at // 0) as $old_at
+        | .value = (
+            if $new.status == "error"
+                and (($new.reason // "") | IN("", "network", "rate_limited", "http_error"))
+                and $old.status? == "ok" and $now - $old_at < 86400 then
+                $old + {stale: true, capturedAt: $old_at}
+                | if (.entries | type) == "array" then
+                      .entries |= map(if (.resetAt // 0) > 0 and .resetAt <= $now
+                          then .percentUsed = 0 | .resetAt = 0 else . end)
+                  else . end
+            else $new end)
+    end)') || exit 2
+
 tmp="$cache.tmp.$$"
 printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cache"
 printf '%s' "$out"
