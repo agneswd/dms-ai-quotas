@@ -39,7 +39,7 @@ PluginComponent {
     // the pill shows it as used up.
     readonly property var providers: [
         { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
-        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"], monochrome: true },
+        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly", "Monthly"], monochrome: true },
         { id: "copilot", label: "Copilot", title: "GitHub Copilot", enabledKey: "copilotEnabled", kind: "limits", defaultPins: ["Premium Requests"], blockingWindows: ["Premium Requests"], monochrome: true },
         { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"], lightLogo: true },
         { id: "zai", label: "Z.ai", title: "Z.ai Coding Plan", enabledKey: "zaiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
@@ -47,7 +47,7 @@ PluginComponent {
         { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
         { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [], lightMonochrome: true },
         { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [], monochrome: true },
-        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini Models - Five Hour Limit Remaining"], blockingWindows: [] }
+        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini - 5 hour limit"], blockingWindows: [] }
     ]
 
     function logoSource(p) {
@@ -226,6 +226,7 @@ PluginComponent {
         if (name === "Weekly") return id === "claude" ? "Weekly usage limit (all models)" : "Weekly usage limit"
         if (id === "claude" && name.indexOf("Weekly ") === 0) return "Weekly usage limit (" + name.slice(7) + ")"
         if (name === "Code Review") return "Code review usage limit"
+        if (id === "codex" && name === "Credits") return "Monthly credit limit"
         if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         if (id === "kimi" && name === "Monthly Code") return "Monthly Kimi Code limit"
         if (id === "copilot" && name === "Premium Requests") return "Premium request quota"
@@ -366,6 +367,13 @@ PluginComponent {
         // Migrate old Grok API-status and plan-period pins to the stable billing pin.
         if (next.grok.length === 1 && (next.grok[0] === "status" || next.grok[0] === "Weekly"))
             next.grok = defaults.grok
+        // Migrate Antigravity pins from the old status line names to the bucket names.
+        next.antigravity = next.antigravity.map(function (name) {
+            return name.replace(/^Gemini Models - /, "Gemini - ")
+                .replace(/^(Claude Models|3p) - /, "Claude & GPT - ")
+                .replace(/Five Hour Limit Remaining$/, "5 hour limit")
+                .replace(/Weekly Limit Remaining$/, "Weekly limit")
+        })
         pinState = next
     }
 

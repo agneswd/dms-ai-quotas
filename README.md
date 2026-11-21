@@ -19,7 +19,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 | **DeepSeek API** | Balance, API availability, grants, and top-ups | API key |
 | **OpenRouter** | Remaining, purchased, and used credits | API key |
 | **Grok** | Weekly usage or on-demand spending cap | Local Grok login (`grok login`) |
-| **Antigravity** | Usage per model group | `agy` status line hook (or local `agy` keyring login) |
+| **Antigravity** | Usage per model group | `agy` or T3 Code sign-in |
 
 ## Features
 
@@ -38,7 +38,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 - DMS 2.0.0 or newer. For DankMaterialShell 1.x, clone the `v1.11.1` tag of AI Quotas: `git clone --branch v1.11.1 https://github.com/agneswd/dms-ai-quotas ~/.config/DankMaterialShell/plugins/aiQuotas`.
 - `curl` and `jq`
 - Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
-- Optional: `secret-tool` from libsecret, for Antigravity keyring fallback
+- Optional: `secret-tool` from libsecret, to read the `agy` sign-in for Antigravity
 - Optional: GitHub CLI (`gh`), to read a GitHub token for Copilot
 
 ## Install
@@ -109,6 +109,8 @@ If you already use a custom status line, merge the two `rate_limits` fields from
 
 Sign in with `codex login` and `grok login`. The plugin reads `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and `GROK_HOME/auth.json` (default `~/.grok/auth.json`).
 
+On each turn, Codex writes its current limits to its session files in `CODEX_HOME/sessions`. The plugin reads the newest one, so Codex usage shows a few seconds after a turn. The plugin asks the Codex usage API at most once a minute, or when you refresh manually.
+
 ### GitHub Copilot
 
 The plugin reads usage snapshots from GitHub's Copilot account endpoint. It uses `COPILOT_GITHUB_TOKEN` if the DMS environment sets it, and otherwise `gh auth token`. Sign in with `gh auth login`. The plugin does not read `GITHUB_TOKEN`, because that variable often holds a broad token for scripts or CI. Copilot access must be enabled for that GitHub account. The endpoint is an internal API and may change independently of GitHub's stable REST API.
@@ -157,7 +159,16 @@ The plugin sends the key to `api.kimi.com`. To use `api.kimi.ai`, set `KIMI_CODE
 
 ### Antigravity
 
-Google's `loadCodeAssist` endpoint rejects third-party clients with `UNSUPPORTED_CLIENT` for consumer accounts, so the recommended setup is to capture quotas from `agy`'s built-in status line hook in `~/.gemini/antigravity-cli/settings.json`:
+Sign in with the Antigravity CLI (`agy`) or with Antigravity in T3 Code. No other setup is necessary.
+
+The plugin asks Google's `retrieveUserQuotaSummary` endpoint on `daily-cloudcode-pa.googleapis.com` and `cloudcode-pa.googleapis.com`, at most once a minute. The daily host meters personal accounts, so its value wins when both hosts report a bucket. Google answers only `agy`, so the request sends the `agy` User-Agent, as T3 Code does.
+
+The access token comes from one of these sources:
+
+1. The `agy` keyring entry (`gemini` / `antigravity`), read with `secret-tool`. Only `agy` renews this token, so it expires one hour after `agy` last ran.
+2. A T3 Code Antigravity sign-in in `~/.t3/userdata/providers/antigravity/*/antigravity-acp/acp_token.json`. This file has its own OAuth client, so the plugin renews a token from it. The renewed token stays in memory.
+
+Without a usable token, the plugin can read the snapshot that `antigravity-statusline.sh` saves on each `agy` turn. To use it, set the script as the `agy` status line command in `~/.gemini/antigravity-cli/settings.json`:
 
 ```json
 {
@@ -169,17 +180,17 @@ Google's `loadCodeAssist` endpoint rejects third-party clients with `UNSUPPORTED
 }
 ```
 
-With `"stack_with_default": true`, `agy` keeps its built-in status line while saving quota snapshots to `$XDG_CACHE_HOME/dms-ai-quotas/antigravity-native.json` on each turn. When a window resets, the plugin shows it as unused without a new request. If you already use a custom `agy` status line script, pipe its stdin JSON into `antigravity-statusline.sh` (for example with `tee`) or merge the `.quota` capture logic into your script.
-
-When no status line snapshot is present, the plugin falls back to `secret-tool` from libsecret to read the access token that `agy` stores in the `gemini` / `antigravity` keyring entry and queries `daily-cloudcode-pa.googleapis.com`. Turn off Antigravity in the plugin settings if you do not use it.
+When the snapshot and the API both have data, the newer one wins. A snapshot older than one hour is marked as stale.
 
 ## How it works
 
-`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes only Claude with `AIQ_PROVIDERS=claude`, which reads local data first. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes Claude, Codex, and Antigravity with `AIQ_PROVIDERS`. These modules read local data first and limit their own API calls. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+
+When a request fails for a temporary reason (no network, HTTP 429 or 5xx, or an answer that cannot be read), the plugin keeps the last good result for up to one day. The popout shows when that result was captured. Login and access errors always show.
 
 ```
 providers/claude.sh       Claude Code usage cache and status line, api.anthropic.com when stale
-providers/codex.sh        chatgpt.com/backend-api/wham/usage
+providers/codex.sh        Codex session files, chatgpt.com/backend-api/wham/usage at most once a minute
 providers/copilot.sh     api.github.com/copilot_internal/user
 providers/opencode.sh     opencode.ai/zen/go/v1/usage
 providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit
@@ -187,7 +198,7 @@ providers/kimi.sh         api.kimi.com/coding/v1/usages
 providers/deepseek.sh     api.deepseek.com/user/balance
 providers/openrouter.sh   openrouter.ai/api/v1/credits
 providers/grok.sh         cli-chat-proxy.grok.com/v1/billing
-providers/antigravity.sh  agy statusLine snapshot, daily-cloudcode-pa.googleapis.com fallback
+providers/antigravity.sh  daily-cloudcode-pa and cloudcode-pa retrieveUserQuotaSummary, agy statusLine snapshot
 ```
 
 To add a provider:

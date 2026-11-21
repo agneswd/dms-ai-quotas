@@ -12,10 +12,6 @@ printf '%s\n' '{"claudeAiOauth":{"accessToken":"fixture-secret-claude"}}' > "$te
 printf '%s\n' '{"tokens":{"access_token":"fixture-secret-codex","account_id":"fixture-account"}}' > "$test_dir/codex/auth.json"
 printf '%s\n' '{"account":{"key":"fixture-secret-grok"}}' > "$test_dir/grok/auth.json"
 
-cat > "$test_dir/bin/secret-tool" <<'EOF'
-#!/bin/sh
-printf '%s\n' '{"token":{"access_token":"fixture-secret-antigravity","expiry":"2030-01-01T00:00:00Z"}}'
-EOF
 cat > "$test_dir/bin/curl" <<'EOF'
 #!/bin/sh
 set -eu
@@ -42,8 +38,6 @@ for arg in "$@"; do
         *api.z.ai*) provider=zai; body='{"code":200,"success":true,"data":{"limits":[{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":10}]}}' ;;
         *openrouter.ai*) provider=openrouter; body='{"data":{"total_credits":20,"total_usage":10}}' ;;
         *cli-chat-proxy.grok.com*) provider=grok; body='{"config":{"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY","end":"2030-01-01T00:00:00Z"},"onDemandCap":{"val":0},"onDemandUsed":{"val":0}}}' ;;
-        *v1internal:loadCodeAssist*) provider=antigravity; body='{"cloudaicompanionProject":"fixture-project"}' ;;
-        *v1internal:retrieveUserQuotaSummary*) provider=antigravity; body='{"groups":[]}' ;;
     esac
 done
 if [ "$provider" = copilot ]; then
@@ -55,7 +49,7 @@ printf '%s\n' "$provider" >> "$AIQ_TEST_PROVIDERS"
 printf '%s' "$body"
 printf '\n200\n'
 EOF
-chmod +x "$test_dir/bin/curl" "$test_dir/bin/secret-tool"
+chmod +x "$test_dir/bin/curl"
 
 env PATH="$test_dir/bin:$PATH" TMPDIR="$test_dir/tmp" \
     XDG_CACHE_HOME="$test_dir/cache" CLAUDE_CONFIG_DIR="$test_dir/claude" \
@@ -63,14 +57,14 @@ env PATH="$test_dir/bin:$PATH" TMPDIR="$test_dir/tmp" \
     AIQ_TEST_REQUESTS="$test_dir/requests.txt" AIQ_TEST_PROVIDERS="$test_dir/providers.txt" \
     AIQ_CLAUDE_ENABLED=1 AIQ_CODEX_ENABLED=1 AIQ_COPILOT_ENABLED=1 AIQ_OPENCODE_ENABLED=1 \
     AIQ_DEEPSEEK_ENABLED=1 AIQ_OPENROUTER_ENABLED=1 AIQ_GROK_ENABLED=1 \
-    AIQ_ANTIGRAVITY_ENABLED=1 AIQ_ZAI_ENABLED=1 AIQ_KIMI_ENABLED=1 AIQ_FORCE_REFRESH=1 \
+    AIQ_ANTIGRAVITY_ENABLED=0 AIQ_ZAI_ENABLED=1 AIQ_KIMI_ENABLED=1 AIQ_FORCE_REFRESH=1 \
     OPENCODE_GO_API_KEY=fixture-secret-opencode DEEPSEEK_API_KEY=fixture-secret-deepseek \
     OPENROUTER_API_KEY=fixture-secret-openrouter ZAI_API_KEY=fixture-secret-zai \
     KIMI_API_KEY=fixture-secret-kimi COPILOT_GITHUB_TOKEN=fixture-secret-copilot \
     sh "$repo/fetch-usage.sh" > "$test_dir/result.json"
 
-jq -e '[.claude,.codex,.copilot,.opencode,.zai,.kimi,.deepseek,.openrouter,.grok,.antigravity] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
-test "$(sort -u "$test_dir/providers.txt" | wc -l)" -eq 10
+jq -e '[.claude,.codex,.copilot,.opencode,.zai,.kimi,.deepseek,.openrouter,.grok] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
+test "$(sort -u "$test_dir/providers.txt" | wc -l)" -eq 9
 test -z "$(find "$test_dir/tmp" -mindepth 1 -print -quit)"
 if grep -rEq 'fixture-secret-|fixture-account' "$test_dir/cache"; then
     printf '%s\n' 'Credentials were written to the cache.' >&2

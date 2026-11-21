@@ -37,8 +37,8 @@
     {"name": "Billing", "kind": "plan", "percentUsed": 62, "resetIn": 500000}
   ]},
   "antigravity": {"status": "ok", "plan": "Pro", "entries": [
-    {"name": "Gemini Models - Five Hour Limit Remaining", "percentUsed": 20, "resetIn": 11000},
-    {"name": "Gemini Models - Weekly Limit Remaining", "percentUsed": 41, "resetIn": 450000},
-    {"name": "Claude Models - Five Hour Limit Remaining", "percentUsed": 55, "resetIn": 11000}
+    {"name": "Gemini - 5 hour limit", "percentUsed": 20, "resetIn": 11000},
+    {"name": "Gemini - Weekly limit", "percentUsed": 41, "resetIn": 450000},
+    {"name": "Claude & GPT - 5 hour limit", "percentUsed": 55, "resetIn": 11000}
   ]}
 }

@@ -1,5 +1,12 @@
 #!/bin/sh
 # Capture Antigravity CLI (agy) statusLine quota data for AI Quotas.
+#
+# Optional: AI Quotas reads quotas from the API when an agy or T3 Code sign-in is
+# available. This snapshot is the fallback. Set it as the agy statusLine command in
+# ~/.gemini/antigravity-cli/settings.json, with "stack_with_default": true.
+#
+# Saves {captured_at, email, plan, buckets: [{bucketId, remainingFraction, resetAt}]}.
+# providers/antigravity.sh names the buckets.
 set -u
 umask 077
 
@@ -7,11 +14,6 @@ cache="${ANTIGRAVITY_USAGE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/dms-ai-quotas/a
 mkdir -p "$(dirname "$cache")" 2>/dev/null || exit 0
 now=$(date +%s)
 data=$(jq -c --argjson now "$now" '
-    def cap:
-        if length == 0 then ""
-        else (.[0:1] | ascii_upcase) + .[1:]
-        end;
-    def clamp_pct: if . < 0 then 0 elif . > 100 then 100 else . end;
     def parse_ts:
         if type == "number" then (if . >= 100000000000 then (. / 1000 | floor) else (. | floor) end)
         elif type == "string" and . != "" then
@@ -24,75 +26,14 @@ data=$(jq -c --argjson now "$now" '
         elif (.reset_in_seconds | type) == "number" and .reset_in_seconds > 0 then ($now + (.reset_in_seconds | floor))
         else 0
         end;
-    def group_label($p):
-        if $p == "gemini" then "Gemini Models"
-        elif $p == "claude" then "Claude Models"
-        elif $p == "gpt" or $p == "openai" then "OpenAI Models"
-        else ($p | cap)
-        end;
-    def group_rank($p):
-        if $p == "gemini" then 0
-        elif $p == "claude" then 1
-        elif $p == "gpt" or $p == "openai" then 2
-        else 3
-        end;
-    # Same bucket names as the retrieveUserQuotaSummary API, so pins match on both paths.
-    def window_label($w):
-        if $w == "5h" or $w == "five-hour" or $w == "five_hour" then "Five Hour Limit Remaining"
-        elif $w == "weekly" or $w == "7d" or $w == "seven-day" or $w == "seven_day" then "Weekly Limit Remaining"
-        elif $w == "daily" or $w == "1d" or $w == "24h" then "Daily Limit Remaining"
-        elif $w == "monthly" or $w == "30d" then "Monthly Limit Remaining"
-        else ($w | gsub("[-_]"; " ") | cap)
-        end;
-    def window_rank($w):
-        if $w == "5h" or $w == "five-hour" or $w == "five_hour" then 0
-        elif $w == "daily" or $w == "1d" or $w == "24h" then 1
-        elif $w == "weekly" or $w == "7d" or $w == "seven-day" or $w == "seven_day" then 2
-        elif $w == "monthly" or $w == "30d" then 3
-        else 4
-        end;
-    def bucket_meta($k):
-        ($k | ascii_downcase) as $low |
-        ($low | index("-")) as $dash |
-        if $dash != null and $dash > 0 and $dash < (($low | length) - 1) then
-            ($low[0:$dash]) as $prefix |
-            ($low[($dash + 1):]) as $rest |
-            {
-                name: (group_label($prefix) + " - " + window_label($rest)),
-                rank: [group_rank($prefix), window_rank($rest), $low]
-            }
-        else
-            {
-                name: ($k | gsub("[-_]"; " ") | cap),
-                rank: [9, 9, $low]
-            }
-        end;
     select(type == "object" and (.quota | type) == "object")
-    | . as $root
-    | (.quota | to_entries
-        | map(select((.value | type) == "object" and .value.disabled != true))
-        | map(. + {rem: (.value.remaining_fraction | if type == "number" then . elif type == "string" then tonumber? else null end)})
-        | map(select(.rem != null))
-        | map(
-            bucket_meta(.key) as $m |
-            {
-                rank: $m.rank,
-                entry: {
-                    name: $m.name,
-                    percentUsed: ((1 - .rem) * 100 | clamp_pct | round),
-                    resetAt: (.value | reset_at)
-                }
-            }
-        )
-        | sort_by(.rank)
-        | map(.entry)) as $entries
-    | if ($entries | length) == 0 then empty
-      else {
-          captured_at: $now,
-          email: ($root.email // ""),
-          plan: ($root.plan_tier // ""),
-          entries: $entries
-      }
+    | [.quota | to_entries[]
+        | select((.value | type) == "object" and .value.disabled != true)
+        | (.value.remaining_fraction | if type == "number" then . elif type == "string" then tonumber? else null end) as $rem
+        | select($rem != null)
+        | {bucketId: .key, remainingFraction: $rem, resetAt: (.value | reset_at)}] as $buckets
+    | if ($buckets | length) == 0 then empty
+      else {captured_at: $now, email: (.email // ""), plan: (.plan_tier // ""), buckets: $buckets}
       end
 ' 2>/dev/null) || exit 0
 [ -n "$data" ] || exit 0

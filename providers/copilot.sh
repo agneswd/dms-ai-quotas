@@ -52,6 +52,10 @@ fetch_copilot() {
                         }
                     end;
                 . as $root |
+                if ($root.access_type_sku // "" | test("ended|expired|cancel")) then
+                    {status: "unavailable", reason: "no_subscription",
+                     error: "This GitHub account has no active Copilot plan. Turn off GitHub Copilot in plugin settings if you do not use it."}
+                else
                 [
                     snapshot($root; "premium_interactions"; "Premium Requests"),
                     snapshot($root; "chat"; "Chat"),
@@ -62,6 +66,7 @@ fetch_copilot() {
                         {status: "unavailable", reason: "no_quota"}
                     else error("no quota snapshots") end
                 else {status: "ok", plan: ($root.copilot_plan // $root.plan_type // "Copilot"), entries: $entries} end
+                end
             '
             ;;
         401) aiq_status error auth_expired "GitHub Copilot login expired. Run gh auth login again, then refresh AI Quotas." ;;

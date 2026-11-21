@@ -76,4 +76,9 @@ COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch '{"quota_snapshots":{"premi
     | jq -e '.copilot.status == "unavailable" and .copilot.reason == "no_quota"' >/dev/null
 run_fetch '{}' | jq -e '.copilot.status == "unavailable" and .copilot.reason == "not_authenticated"' >/dev/null
 
+# An ended subscription has no snapshots. It is a plan state, not a parse failure.
+COPILOT_GITHUB_TOKEN=fixture-copilot-token run_fetch \
+    '{"copilot_plan":"individual","access_type_sku":"subscription_ended","quota_snapshots":null}' \
+    | jq -e '.copilot.status == "unavailable" and .copilot.reason == "no_subscription"' >/dev/null
+
 printf '%s\n' 'GitHub Copilot fetch checks passed.'
