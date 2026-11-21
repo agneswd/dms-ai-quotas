@@ -39,7 +39,7 @@ PluginComponent {
     // the pill shows it as used up.
     readonly property var providers: [
         { id: "claude", label: "Claude", title: "Claude", enabledKey: "claudeEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
-        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"], monochrome: true },
+        { id: "codex", label: "Codex", title: "Codex", enabledKey: "codexEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly", "Monthly"], monochrome: true },
         { id: "copilot", label: "Copilot", title: "GitHub Copilot", enabledKey: "copilotEnabled", kind: "limits", defaultPins: ["Premium Requests"], blockingWindows: ["Premium Requests"], monochrome: true },
         { id: "opencode", label: "OpenCode", title: "OpenCode Go", enabledKey: "openCodeEnabled", kind: "limits", defaultPins: ["Rolling"], blockingWindows: ["Rolling", "Weekly", "Monthly"], lightLogo: true },
         { id: "zai", label: "Z.ai", title: "Z.ai Coding Plan", enabledKey: "zaiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly"] },
@@ -226,6 +226,7 @@ PluginComponent {
         if (name === "Weekly") return id === "claude" ? "Weekly usage limit (all models)" : "Weekly usage limit"
         if (id === "claude" && name.indexOf("Weekly ") === 0) return "Weekly usage limit (" + name.slice(7) + ")"
         if (name === "Code Review") return "Code review usage limit"
+        if (id === "codex" && name === "Credits") return "Monthly credit limit"
         if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         if (id === "kimi" && name === "Monthly Code") return "Monthly Kimi Code limit"
         if (id === "copilot" && name === "Premium Requests") return "Premium request quota"
