@@ -40,12 +40,12 @@ PluginComponent {
     }
 
     property var usageData: null
-    // Fetch requests are serialized. A queued full fetch replaces a queued Claude fetch.
+    // Fetch requests are serialized. A queued full fetch replaces a queued local fetch.
     property bool fetchQueued: false
     property bool queuedForce: false
-    property bool queuedClaudeOnly: false
+    property bool queuedLocalOnly: false
     property bool activeForce: false
-    property bool activeClaudeOnly: false
+    property bool activeLocalOnly: false
     property string lastFetchSignature: ""
 
     // Environment for one fetch, without the force flag. A value typed into
@@ -71,13 +71,17 @@ PluginComponent {
         onTriggered: root.requestFetch()
     }
 
-    // Claude reads local snapshots first, so a Claude-only refresh is cheap. It
-    // shows new Claude Code usage within seconds instead of one refresh interval.
+    // These providers read local snapshots first and limit their own API calls,
+    // so refreshing them often is cheap. New usage shows within seconds instead
+    // of one refresh interval.
+    readonly property var localProviders: ["claude", "codex", "antigravity"]
+
     Timer {
         interval: 15000
-        running: root.pluginData.claudeEnabled !== false
+        running: root.pluginData.claudeEnabled !== false || root.pluginData.codexEnabled !== false
+            || root.pluginData.antigravityEnabled !== false
         repeat: true
-        onTriggered: root.requestClaudeFetch()
+        onTriggered: root.requestLocalFetch()
     }
 
     Process {
@@ -86,7 +90,7 @@ PluginComponent {
         environment: {
             var env = root.settingsEnvironment()
             env.AIQ_FORCE_REFRESH = root.activeForce ? "1" : "0"
-            env.AIQ_PROVIDERS = root.activeClaudeOnly ? "claude" : ""
+            env.AIQ_PROVIDERS = root.activeLocalOnly ? root.localProviders.join(" ") : ""
             return env
         }
         stdout: SplitParser {
@@ -101,9 +105,9 @@ PluginComponent {
         }
         stderr: SplitParser { onRead: line => {} }
         onExited: code => {
-            if (root.queuedClaudeOnly) {
-                root.queuedClaudeOnly = false
-                Qt.callLater(root.requestClaudeFetch)
+            if (root.queuedLocalOnly) {
+                root.queuedLocalOnly = false
+                Qt.callLater(root.requestLocalFetch)
             } else if (root.fetchQueued) {
                 var force = root.queuedForce
                 root.fetchQueued = false
@@ -121,22 +125,22 @@ PluginComponent {
         if (fetchProcess.running) {
             fetchQueued = true
             queuedForce = queuedForce || force === true
-            queuedClaudeOnly = false
+            queuedLocalOnly = false
             return
         }
         activeForce = force === true
-        activeClaudeOnly = false
+        activeLocalOnly = false
         fetchProcess.running = true
     }
 
-    // Refresh only Claude and keep the other providers from the cache.
-    function requestClaudeFetch() {
+    // Refresh only the local providers and keep the others from the cache.
+    function requestLocalFetch() {
         if (fetchProcess.running) {
-            queuedClaudeOnly = !fetchQueued
+            queuedLocalOnly = !fetchQueued
             return
         }
         activeForce = false
-        activeClaudeOnly = true
+        activeLocalOnly = true
         fetchProcess.running = true
     }
 
