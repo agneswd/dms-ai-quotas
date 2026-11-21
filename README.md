@@ -108,6 +108,8 @@ If you already use a custom status line, merge the two `rate_limits` fields from
 
 Sign in with `codex login` and `grok login`. The plugin reads `CODEX_HOME/auth.json` (default `~/.codex/auth.json`) and `GROK_HOME/auth.json` (default `~/.grok/auth.json`).
 
+On each turn, Codex writes its current limits to its session files in `CODEX_HOME/sessions`. The plugin reads the newest one, so Codex usage shows a few seconds after a turn. The plugin asks the Codex usage API at most once a minute, or when you refresh manually.
+
 ### GitHub Copilot
 
 The plugin reads usage snapshots from GitHub's Copilot account endpoint. It uses `COPILOT_GITHUB_TOKEN` if the DMS environment sets it, and otherwise `gh auth token`. Sign in with `gh auth login`. The plugin does not read `GITHUB_TOKEN`, because that variable often holds a broad token for scripts or CI. Copilot access must be enabled for that GitHub account. The endpoint is an internal API and may change independently of GitHub's stable REST API.
@@ -178,11 +180,13 @@ If you already use a custom `agy` status line command, the plugin does not chang
 
 ## How it works
 
-`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes only Claude with `AIQ_PROVIDERS=claude`, which reads local data first. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+`AiQuotasDaemon.qml` runs `fetch-usage.sh` on each refresh. The script runs one module per enabled provider from `providers/` in parallel. It merges the results into one JSON line, caches it in `$XDG_CACHE_HOME/dms-ai-quotas/usage.json` for 55 seconds, and prints it. Every 15 seconds, the daemon also refreshes Claude, Codex, and Antigravity with `AIQ_PROVIDERS`. These modules read local data first and limit their own API calls. `AiQuotasWidget.qml` shows the result in the bar pill and the popout.
+
+When a request fails for a temporary reason (no network, HTTP 429 or 5xx, or an answer that cannot be read), the plugin keeps the last good result for up to one day. The popout shows when that result was captured. Login and access errors always show.
 
 ```
 providers/claude.sh       Claude Code usage cache and status line, api.anthropic.com when stale
-providers/codex.sh        chatgpt.com/backend-api/wham/usage
+providers/codex.sh        Codex session files, chatgpt.com/backend-api/wham/usage at most once a minute
 providers/copilot.sh     api.github.com/copilot_internal/user
 providers/opencode.sh     opencode.ai/zen/go/v1/usage
 providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit
