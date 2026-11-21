@@ -19,7 +19,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 | **DeepSeek API** | Balance, API availability, grants, and top-ups | API key |
 | **OpenRouter** | Remaining, purchased, and used credits | API key |
 | **Grok** | Weekly usage or on-demand spending cap | Local Grok login (`grok login`) |
-| **Antigravity** | Usage per model group | `agy` status line hook, installed automatically |
+| **Antigravity** | Usage per model group | `agy` or T3 Code sign-in |
 
 ## Features
 
@@ -38,6 +38,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 - DMS 2.0.0 or newer. For DankMaterialShell 1.x, clone the `v1.11.1` tag of AI Quotas: `git clone --branch v1.11.1 https://github.com/agneswd/dms-ai-quotas ~/.config/DankMaterialShell/plugins/aiQuotas`.
 - `curl` and `jq`
 - Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
+- Optional: `secret-tool` from libsecret, to read the `agy` sign-in for Antigravity
 - Optional: GitHub CLI (`gh`), to read a GitHub token for Copilot
 
 ## Install
@@ -158,25 +159,28 @@ The plugin sends the key to `api.kimi.com`. To use `api.kimi.ai`, set `KIMI_CODE
 
 ### Antigravity
 
-Install the Antigravity CLI (`agy`) and sign in. No other setup is necessary.
+Sign in with the Antigravity CLI (`agy`) or with Antigravity in T3 Code. No other setup is necessary.
 
-Google rejects direct quota requests from clients other than `agy` (`UNSUPPORTED_CLIENT`). Thus the plugin reads the quota data that `agy` gives to its status line command. On the first refresh, the plugin adds this hook to `~/.gemini/antigravity-cli/settings.json`:
+The plugin asks Google's `retrieveUserQuotaSummary` endpoint on `daily-cloudcode-pa.googleapis.com` and `cloudcode-pa.googleapis.com`, at most once a minute. The daily host meters personal accounts, so its value wins when both hosts report a bucket. Google answers only `agy`, so the request sends the `agy` User-Agent, as T3 Code does.
+
+The access token comes from one of these sources:
+
+1. The `agy` keyring entry (`gemini` / `antigravity`), read with `secret-tool`. Only `agy` renews this token, so it expires one hour after `agy` last ran.
+2. A T3 Code Antigravity sign-in in `~/.t3/userdata/providers/antigravity/*/antigravity-acp/acp_token.json`. This file has its own OAuth client, so the plugin renews a token from it. The renewed token stays in memory.
+
+Without a usable token, the plugin can read the snapshot that `antigravity-statusline.sh` saves on each `agy` turn. To use it, set the script as the `agy` status line command in `~/.gemini/antigravity-cli/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "sh '/path/to/aiQuotas/antigravity-statusline.sh'",
+    "command": "sh ~/.config/dms/plugins/aiQuotas/antigravity-statusline.sh",
     "stack_with_default": true
   }
 }
 ```
 
-The plugin changes only an empty `statusLine` command. It keeps all other settings. With `"stack_with_default": true`, `agy` keeps its built-in status line.
-
-On each `agy` turn, the hook saves a snapshot to `$XDG_CACHE_HOME/dms-ai-quotas/antigravity-native.json`. Until the first turn, the popout shows "Send a message in agy to load Antigravity quotas." When a window resets, the plugin shows it as unused without a new turn. A snapshot older than one hour is marked as stale.
-
-If you already use a custom `agy` status line command, the plugin does not change it. Pipe its stdin JSON into `antigravity-statusline.sh` (for example with `tee`), or merge the `.quota` capture logic into your script.
+When the snapshot and the API both have data, the newer one wins. A snapshot older than one hour is marked as stale.
 
 ## How it works
 
@@ -194,7 +198,7 @@ providers/kimi.sh         api.kimi.com/coding/v1/usages
 providers/deepseek.sh     api.deepseek.com/user/balance
 providers/openrouter.sh   openrouter.ai/api/v1/credits
 providers/grok.sh         cli-chat-proxy.grok.com/v1/billing
-providers/antigravity.sh  agy statusLine snapshot (no network requests)
+providers/antigravity.sh  daily-cloudcode-pa and cloudcode-pa retrieveUserQuotaSummary, agy statusLine snapshot
 ```
 
 To add a provider:
