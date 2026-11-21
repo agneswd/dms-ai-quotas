@@ -19,7 +19,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 | **DeepSeek API** | Balance, API availability, grants, and top-ups | API key |
 | **OpenRouter** | Remaining, purchased, and used credits | API key |
 | **Grok** | Weekly usage or on-demand spending cap | Local Grok login (`grok login`) |
-| **Antigravity** | Usage per model group | `agy` status line hook (or local `agy` keyring login) |
+| **Antigravity** | Usage per model group | `agy` status line hook, installed automatically |
 
 ## Features
 
@@ -38,7 +38,6 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 - DMS 2.0.0 or newer. For DankMaterialShell 1.x, clone the `v1.11.1` tag of AI Quotas: `git clone --branch v1.11.1 https://github.com/agneswd/dms-ai-quotas ~/.config/DankMaterialShell/plugins/aiQuotas`.
 - `curl` and `jq`
 - Optional: `sqlite3`, to read the newest OpenCode Go key from `opencode.db`
-- Optional: `secret-tool` from libsecret, for Antigravity keyring fallback
 - Optional: GitHub CLI (`gh`), to read a GitHub token for Copilot
 
 ## Install
@@ -157,21 +156,25 @@ The plugin sends the key to `api.kimi.com`. To use `api.kimi.ai`, set `KIMI_CODE
 
 ### Antigravity
 
-Google's `loadCodeAssist` endpoint rejects third-party clients with `UNSUPPORTED_CLIENT` for consumer accounts, so the recommended setup is to capture quotas from `agy`'s built-in status line hook in `~/.gemini/antigravity-cli/settings.json`:
+Install the Antigravity CLI (`agy`) and sign in. No other setup is necessary.
+
+Google rejects direct quota requests from clients other than `agy` (`UNSUPPORTED_CLIENT`). Thus the plugin reads the quota data that `agy` gives to its status line command. On the first refresh, the plugin adds this hook to `~/.gemini/antigravity-cli/settings.json`:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "sh ~/.config/dms/plugins/aiQuotas/antigravity-statusline.sh",
+    "command": "sh '/path/to/aiQuotas/antigravity-statusline.sh'",
     "stack_with_default": true
   }
 }
 ```
 
-With `"stack_with_default": true`, `agy` keeps its built-in status line while saving quota snapshots to `$XDG_CACHE_HOME/dms-ai-quotas/antigravity-native.json` on each turn. When a window resets, the plugin shows it as unused without a new request. If you already use a custom `agy` status line script, pipe its stdin JSON into `antigravity-statusline.sh` (for example with `tee`) or merge the `.quota` capture logic into your script.
+The plugin changes only an empty `statusLine` command. It keeps all other settings. With `"stack_with_default": true`, `agy` keeps its built-in status line.
 
-When no status line snapshot is present, the plugin falls back to `secret-tool` from libsecret to read the access token that `agy` stores in the `gemini` / `antigravity` keyring entry and queries `daily-cloudcode-pa.googleapis.com`. Turn off Antigravity in the plugin settings if you do not use it.
+On each `agy` turn, the hook saves a snapshot to `$XDG_CACHE_HOME/dms-ai-quotas/antigravity-native.json`. Until the first turn, the popout shows "Send a message in agy to load Antigravity quotas." When a window resets, the plugin shows it as unused without a new turn. A snapshot older than one hour is marked as stale.
+
+If you already use a custom `agy` status line command, the plugin does not change it. Pipe its stdin JSON into `antigravity-statusline.sh` (for example with `tee`), or merge the `.quota` capture logic into your script.
 
 ## How it works
 
@@ -187,7 +190,7 @@ providers/kimi.sh         api.kimi.com/coding/v1/usages
 providers/deepseek.sh     api.deepseek.com/user/balance
 providers/openrouter.sh   openrouter.ai/api/v1/credits
 providers/grok.sh         cli-chat-proxy.grok.com/v1/billing
-providers/antigravity.sh  agy statusLine snapshot, daily-cloudcode-pa.googleapis.com fallback
+providers/antigravity.sh  agy statusLine snapshot (no network requests)
 ```
 
 To add a provider:
