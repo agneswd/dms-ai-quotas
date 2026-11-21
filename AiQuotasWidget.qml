@@ -47,7 +47,7 @@ PluginComponent {
         { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
         { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [], lightMonochrome: true },
         { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [], monochrome: true },
-        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini Models - Five Hour Limit Remaining"], blockingWindows: [] }
+        { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini - 5 hour limit"], blockingWindows: [] }
     ]
 
     function logoSource(p) {
@@ -367,6 +367,13 @@ PluginComponent {
         // Migrate old Grok API-status and plan-period pins to the stable billing pin.
         if (next.grok.length === 1 && (next.grok[0] === "status" || next.grok[0] === "Weekly"))
             next.grok = defaults.grok
+        // Migrate Antigravity pins from the old status line names to the bucket names.
+        next.antigravity = next.antigravity.map(function (name) {
+            return name.replace(/^Gemini Models - /, "Gemini - ")
+                .replace(/^(Claude Models|3p) - /, "Claude & GPT - ")
+                .replace(/Five Hour Limit Remaining$/, "5 hour limit")
+                .replace(/Weekly Limit Remaining$/, "Weekly limit")
+        })
         pinState = next
     }
 
