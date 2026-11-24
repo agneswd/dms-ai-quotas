@@ -11,7 +11,7 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Providers")
             icon: "smart_toy"
-            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || copilotEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || kimiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
+            showReset: claudeEnabled.isDirty || codexEnabled.isDirty || copilotEnabled.isDirty || openCodeEnabled.isDirty || zaiEnabled.isDirty || kimiEnabled.isDirty || deepSeekEnabled.isDirty || openRouterEnabled.isDirty || mistralEnabled.isDirty || grokEnabled.isDirty || antigravityEnabled.isDirty
             onResetClicked: {
                 claudeEnabled.resetToDefault()
                 codexEnabled.resetToDefault()
@@ -21,6 +21,7 @@ PluginSettings {
                 kimiEnabled.resetToDefault()
                 deepSeekEnabled.resetToDefault()
                 openRouterEnabled.resetToDefault()
+                mistralEnabled.resetToDefault()
                 grokEnabled.resetToDefault()
                 antigravityEnabled.resetToDefault()
             }
@@ -101,6 +102,16 @@ PluginSettings {
             settingKey: "openRouterEnabled"
             label: I18n.tr("OpenRouter")
             description: I18n.tr("Show your OpenRouter account credit balance.")
+            defaultValue: true
+        }
+
+        Separator {}
+
+        ToggleSettingPlus {
+            id: mistralEnabled
+            settingKey: "mistralEnabled"
+            label: I18n.tr("Mistral")
+            description: I18n.tr("Show monthly Mistral API and Vibe Code budgets.")
             defaultValue: true
         }
 
@@ -201,7 +212,7 @@ PluginSettings {
         SectionTitle {
             text: I18n.tr("Credentials")
             icon: "key"
-            showReset: openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty || kimiApiKey.isDirty || deepSeekApiKey.isDirty || openRouterApiKey.isDirty
+            showReset: openCodeApiKey.isDirty || zaiApiKey.isDirty || zaiRegion.isDirty || kimiApiKey.isDirty || deepSeekApiKey.isDirty || openRouterApiKey.isDirty || mistralApiKey.isDirty
             onResetClicked: {
                 openCodeApiKey.resetToDefault()
                 zaiApiKey.resetToDefault()
@@ -209,6 +220,7 @@ PluginSettings {
                 kimiApiKey.resetToDefault()
                 deepSeekApiKey.resetToDefault()
                 openRouterApiKey.resetToDefault()
+                mistralApiKey.resetToDefault()
             }
         }
 
@@ -276,6 +288,17 @@ PluginSettings {
             label: I18n.tr("OpenRouter API Key")
             description: I18n.tr("Your API key from openrouter.ai/settings/keys.")
             placeholder: "sk-or-..."
+            defaultValue: ""
+        }
+
+        Separator {}
+
+        StringSettingPlus {
+            id: mistralApiKey
+            settingKey: "mistralApiKey"
+            label: I18n.tr("Mistral API Key")
+            description: I18n.tr("Your API key from admin.mistral.ai, or leave empty to use Mistral Vibe.")
+            placeholder: I18n.tr("Paste your API key")
             defaultValue: ""
         }
     }

@@ -19,6 +19,7 @@ PluginComponent {
         kimiEnabled: "AIQ_KIMI_ENABLED",
         deepSeekEnabled: "AIQ_DEEPSEEK_ENABLED",
         openRouterEnabled: "AIQ_OPENROUTER_ENABLED",
+        mistralEnabled: "AIQ_MISTRAL_ENABLED",
         grokEnabled: "AIQ_GROK_ENABLED",
         antigravityEnabled: "AIQ_ANTIGRAVITY_ENABLED"
     })
@@ -28,7 +29,8 @@ PluginComponent {
         zaiRegion: "ZAI_API_HOST",
         kimiApiKey: "KIMI_API_KEY",
         deepSeekApiKey: "DEEPSEEK_API_KEY",
-        openRouterApiKey: "OPENROUTER_API_KEY"
+        openRouterApiKey: "OPENROUTER_API_KEY",
+        mistralApiKey: "MISTRAL_API_KEY"
     })
 
     property int refreshInterval: pluginData.refreshInterval || 60

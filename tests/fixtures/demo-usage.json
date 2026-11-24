@@ -33,6 +33,10 @@
   "openrouter": {"status": "ok", "balances": [
     {"currency": "USD", "total": "9.66", "purchased": "10", "used": "0.34"}
   ]},
+  "mistral": {"status": "ok", "plan": "Pro", "entries": [
+    {"name": "API", "percentUsed": 18, "resetIn": 1500000, "initialBudget": 30, "currency": "EUR", "paygEnabled": false},
+    {"name": "Vibe", "percentUsed": 42, "resetIn": 1500000, "initialBudget": 300, "currency": "EUR", "paygEnabled": false}
+  ]},
   "grok": {"status": "ok", "plan": "SuperGrok", "entries": [
     {"name": "Billing", "kind": "plan", "percentUsed": 62, "resetIn": 500000}
   ]},
