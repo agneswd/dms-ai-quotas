@@ -64,6 +64,16 @@ for arg in "$@"; do
             expected=keyring-service-deepseek-username-quota
             body='{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"10","granted_balance":"0","topped_up_balance":"10"}]}'
             ;;
+        *api.mistral.ai/v1/billing/budget*)
+            provider=mistral
+            expected=keyring-service-mistral-username-quota
+            body='{"api_budget":{"usage_percentage":10,"initial_budget":30,"currency":"EUR","reset_at":"2030-01-01T00:00:00Z"},"vibe_budget":{"usage_percentage":0,"initial_budget":0,"currency":null,"reset_at":"2030-01-01T00:00:00Z"}}'
+            ;;
+        *api.mistral.ai/v1/billing/subscription*)
+            provider=mistral
+            expected=keyring-service-mistral-username-quota
+            body='{"plan_name":"INDIVIDUAL","payg_enabled":false,"vibe_payg_enabled":false,"enterprise":false}'
+            ;;
     esac
 done
 grep -Fqx "Authorization: Bearer $expected" "$header_file" ||
@@ -75,12 +85,12 @@ chmod +x "$test_dir/bin/curl"
 
 run_fetch() {
     env -u OPENROUTER_API_KEY -u ZAI_API_KEY -u GLM_API_KEY -u ZHIPU_API_KEY \
-        -u OPENCODE_API_KEY -u OPENCODE_GO_API_KEY -u KIMI_API_KEY -u DEEPSEEK_API_KEY \
+        -u OPENCODE_API_KEY -u OPENCODE_GO_API_KEY -u KIMI_API_KEY -u DEEPSEEK_API_KEY -u MISTRAL_API_KEY \
         -u AIQ_VAULT_TIMEOUT \
         PATH="$test_dir/bin:$PATH" TMPDIR="$test_dir/tmp" XDG_CACHE_HOME="$test_dir/cache" \
-        OPENCODE_DATA_DIR="$test_dir/data" KIMI_CODE_HOME="$test_dir/kimi" AIQ_FORCE_REFRESH=1 \
+        OPENCODE_DATA_DIR="$test_dir/data" KIMI_CODE_HOME="$test_dir/kimi" VIBE_HOME="$test_dir/vibe" AIQ_FORCE_REFRESH=1 \
         AIQ_ZAI_ENABLED="${1:-1}" AIQ_OPENROUTER_ENABLED="${2:-1}" AIQ_OPENCODE_ENABLED="${3:-1}" \
-        AIQ_KIMI_ENABLED="${6:-1}" AIQ_DEEPSEEK_ENABLED="${6:-1}" \
+        AIQ_KIMI_ENABLED="${6:-1}" AIQ_DEEPSEEK_ENABLED="${6:-1}" AIQ_MISTRAL_ENABLED="${6:-1}" \
         AIQ_CLAUDE_ENABLED=0 AIQ_CODEX_ENABLED=0 AIQ_COPILOT_ENABLED=0 \
         AIQ_GROK_ENABLED=0 AIQ_ANTIGRAVITY_ENABLED=0 \
         AIQ_VAULT_ZAI="service zai username quota" \
@@ -88,20 +98,22 @@ run_fetch() {
         AIQ_VAULT_OPENCODE="service opencode username quota" \
         AIQ_VAULT_KIMI="service kimi username quota" \
         AIQ_VAULT_DEEPSEEK="service deepseek username quota" \
+        AIQ_VAULT_MISTRAL="service mistral username quota" \
         AIQ_TEST_REQUESTS="$test_dir/requests.txt" AIQ_TEST_LOOKUPS="$test_dir/lookups.txt" \
         AIQ_VAULT_TIMEOUT="${4:-3}" AIQ_TEST_SLEEP="${5:-}" \
         sh "$repo/fetch-usage.sh"
 }
 
-# 1. The keyring supplies all five keys, and no key reaches an argument.
+# 1. The keyring supplies all six keys, and no key reaches an argument.
 : >"$test_dir/lookups.txt"
 run_fetch >"$test_dir/result.json"
-jq -e '[.zai, .openrouter, .opencode, .kimi, .deepseek] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
+jq -e '[.zai, .openrouter, .opencode, .kimi, .deepseek, .mistral] | all(.status == "ok")' "$test_dir/result.json" >/dev/null
 grep -qx 'lookup service zai username quota' "$test_dir/lookups.txt"
 grep -qx 'lookup service openrouter username quota' "$test_dir/lookups.txt"
 grep -qx 'lookup service opencode username quota' "$test_dir/lookups.txt"
 grep -qx 'lookup service kimi username quota' "$test_dir/lookups.txt"
 grep -qx 'lookup service deepseek username quota' "$test_dir/lookups.txt"
+grep -qx 'lookup service mistral username quota' "$test_dir/lookups.txt"
 if grep -rEq 'keyring-' "$test_dir/cache"; then
     printf '%s\n' 'A keyring key was written to the cache.' >&2
     exit 1
@@ -114,7 +126,7 @@ env -u ZAI_API_KEY -u OPENCODE_API_KEY -u OPENCODE_GO_API_KEY \
     PATH="$test_dir/bin:$PATH" TMPDIR="$test_dir/tmp" XDG_CACHE_HOME="$test_dir/cache" \
     OPENCODE_DATA_DIR="$test_dir/data" AIQ_FORCE_REFRESH=1 \
     AIQ_ZAI_ENABLED=0 AIQ_OPENCODE_ENABLED=0 AIQ_OPENROUTER_ENABLED=1 \
-    AIQ_CLAUDE_ENABLED=0 AIQ_CODEX_ENABLED=0 AIQ_COPILOT_ENABLED=0 AIQ_KIMI_ENABLED=0 AIQ_DEEPSEEK_ENABLED=0 \
+    AIQ_CLAUDE_ENABLED=0 AIQ_CODEX_ENABLED=0 AIQ_COPILOT_ENABLED=0 AIQ_KIMI_ENABLED=0 AIQ_DEEPSEEK_ENABLED=0 AIQ_MISTRAL_ENABLED=0 \
     AIQ_GROK_ENABLED=0 AIQ_ANTIGRAVITY_ENABLED=0 \
     AIQ_VAULT_OPENROUTER="service openrouter username quota" \
     AIQ_TEST_REQUESTS="$test_dir/requests.txt" AIQ_TEST_LOOKUPS="$test_dir/lookups.txt" \

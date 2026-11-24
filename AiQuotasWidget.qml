@@ -46,6 +46,7 @@ PluginComponent {
         { id: "kimi", label: "Kimi", title: "Kimi Code", enabledKey: "kimiEnabled", kind: "limits", defaultPins: ["5h"], blockingWindows: ["5h", "Weekly", "Monthly"] },
         { id: "deepseek", label: "DeepSeek", title: "DeepSeek API balance", enabledKey: "deepSeekEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [] },
         { id: "openrouter", label: "OpenRouter", title: "OpenRouter credit balance", enabledKey: "openRouterEnabled", kind: "balance", defaultPins: ["balance"], blockingWindows: [], lightMonochrome: true },
+        { id: "mistral", label: "Mistral", title: "Mistral", enabledKey: "mistralEnabled", kind: "limits", defaultPins: ["API"], blockingWindows: [] },
         { id: "grok", label: "Grok", title: "Grok", enabledKey: "grokEnabled", kind: "limits", defaultPins: ["Billing"], blockingWindows: [], monochrome: true },
         { id: "antigravity", label: "Antigravity", title: "Antigravity", enabledKey: "antigravityEnabled", kind: "limits", defaultPins: ["Gemini - 5 hour limit"], blockingWindows: [] }
     ]
@@ -230,7 +231,19 @@ PluginComponent {
         if (id === "zai" && name === "MCP") return "Monthly MCP tool calls"
         if (id === "kimi" && name === "Monthly Code") return "Monthly Kimi Code limit"
         if (id === "copilot" && name === "Premium Requests") return "Premium request quota"
+        if (id === "mistral" && name === "API") return "Monthly API budget"
+        if (id === "mistral" && name === "Vibe") return "Monthly Vibe Code budget"
         return name + " usage limit"
+    }
+
+    function limitDetails(id, entry) {
+        if (id !== "mistral") return []
+        var details = []
+        if (parseFloat(entry.initialBudget) > 0)
+            details.push("Budget: " + fmtMoney(entry.initialBudget, entry.currency))
+        if (entry.paygEnabled === true)
+            details.push("Pay-as-you-go enabled")
+        return details
     }
 
     function balanceDetails(id, balance) {
@@ -277,7 +290,7 @@ PluginComponent {
                 label: limitLabel(id, entry),
                 value: pctStr(used),
                 shortValue: Math.round(pctVal(used)) + "%",
-                details: [],
+                details: limitDetails(id, entry),
                 percentUsed: used,
                 resetAt: entry.resetAt || 0
             }
@@ -446,7 +459,7 @@ PluginComponent {
     function fmtMoney(value, currency) {
         var amount = parseFloat(value)
         if (!isFinite(amount)) return "--"
-        var suffix = currency === "USD" ? "$" : (currency === "CNY" ? "¥" : (currency || ""))
+        var suffix = currency === "USD" ? "$" : (currency === "EUR" ? "€" : (currency === "CNY" ? "¥" : (currency || "")))
         return amount.toFixed(2) + suffix
     }
 

@@ -1,6 +1,6 @@
 # dms-ai-quotas
 
-Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Grok, and Antigravity usage limits and balances in your [Dux Modular Shell](https://github.com/duxlabs-dev/dux-shell) (DMS, formerly DankMaterialShell) bar.
+Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, OpenRouter, Mistral, Grok, and Antigravity usage limits and balances in your [Dux Modular Shell](https://github.com/duxlabs-dev/dux-shell) (DMS, formerly DankMaterialShell) bar.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="AI Quotas bar pill and popout" width="560"/>
@@ -18,6 +18,7 @@ Monitor Claude, Codex, GitHub Copilot, OpenCode Go, Z.ai, Kimi Code, DeepSeek, O
 | **Kimi Code** | 5-hour, weekly, and monthly usage | API key, or the `kimi` login |
 | **DeepSeek API** | Balance, API availability, grants, and top-ups | API key |
 | **OpenRouter** | Remaining, purchased, and used credits | API key |
+| **Mistral** | Monthly API and Vibe Code budgets | API key, or Mistral Vibe login |
 | **Grok** | Weekly usage or on-demand spending cap | Local Grok login (`grok login`) |
 | **Antigravity** | Usage per model group | `agy` or T3 Code sign-in |
 
@@ -72,6 +73,7 @@ Then in DMS:
 | Kimi Code API Key | empty | Recommended. See [Kimi Code](#kimi-code) |
 | DeepSeek API Key | empty | From [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
 | OpenRouter API Key | empty | From [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| Mistral API Key | empty | From [admin.mistral.ai](https://admin.mistral.ai), or empty for Mistral Vibe |
 
 Use the pin button next to a limit in the popout to choose what the bar pill shows. If the pill has nothing to show, it shows a small robot icon.
 
@@ -139,6 +141,7 @@ AIQ_VAULT_OPENROUTER="service openrouter username quota"
 AIQ_VAULT_OPENCODE="service opencode username quota"
 AIQ_VAULT_KIMI="service kimi username quota"
 AIQ_VAULT_DEEPSEEK="service deepseek username quota"
+AIQ_VAULT_MISTRAL="service mistral username quota"
 ```
 
 The shell reads the environment when it starts, so restart it after adding a spec. `AIQ_VAULT_TIMEOUT` bounds the lookup in seconds (default 3): a locked keyring raises a prompt and waits, and the fetch continues without a key rather than blocking. The plugin fetches about once a minute, so a locked keyring can show its unlock prompt again on each fetch until you unlock it.
@@ -156,6 +159,12 @@ Paste a Kimi Code API key into **Kimi Code API Key**. Find it in the [Kimi Code 
 Without a key, the plugin uses the login token of the `kimi` CLI from `~/.kimi-code/credentials/kimi-code.json`. That token expires about 15 minutes after `kimi` stops, and only `kimi` refreshes it. The plugin then shows that the login expired until you run `kimi` again.
 
 The plugin sends the key to `api.kimi.com`. To use `api.kimi.ai`, set `KIMI_CODE_BASE_URL=https://api.kimi.ai/coding/v1` in the environment of DMS.
+
+### Mistral
+
+Paste a Mistral API key from [admin.mistral.ai](https://admin.mistral.ai) into **Mistral API Key**, or configure `AIQ_VAULT_MISTRAL`.
+
+Without a configured key, if `VIBE_HOME` (default `~/.vibe`) exists, the plugin reads `MISTRAL_API_KEY` from `~/.vibe/.env` or from Mistral Vibe's freedesktop keyring entry (`ai.mistral.vibe`). The key is sent only to `api.mistral.ai` to read `/v1/billing/budget` and `/v1/billing/subscription`, and needs organization usage permission (`see_org_inference_usage`).
 
 ### Antigravity
 
@@ -197,6 +206,7 @@ providers/zai.sh          api.z.ai/api/monitor/usage/quota/limit
 providers/kimi.sh         api.kimi.com/coding/v1/usages
 providers/deepseek.sh     api.deepseek.com/user/balance
 providers/openrouter.sh   openrouter.ai/api/v1/credits
+providers/mistral.sh      api.mistral.ai/v1/billing/budget and /v1/billing/subscription
 providers/grok.sh         cli-chat-proxy.grok.com/v1/billing
 providers/antigravity.sh  daily-cloudcode-pa and cloudcode-pa retrieveUserQuotaSummary, agy statusLine snapshot
 ```
